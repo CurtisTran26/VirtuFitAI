@@ -1,0 +1,40 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node.js và Expo
+node_modules/
+.expo/
+.expo-shared/
+dist/
+build/
+web-build/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Generated data
+uploads/
+generated_images/
+*.db
+*.sqlite3
+
+# Mobile build
+*.apk
+*.aab
+*.ipa
+
+# Operating system
+.DS_Store
+Thumbs.db
