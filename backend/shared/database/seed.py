@@ -3,16 +3,28 @@ Script nạp dữ liệu mẫu thực tế (Realistic & Idempotent Seed Data) ch
 Tính năng:
 - Idempotent: Chạy nhiều lần mà không tạo bản ghi trùng lặp (duplicate).
 - Thực tế: Dữ liệu thời trang Việt Nam (VNĐ, size form Việt, số đo ngực/eo/dài để AI try-on).
-- Bao gồm cả Positive Cases (hàng bán chạy, giảm giá, đủ size) và Negative Cases (hết hàng, ẩn, size lẻ).
+- Bao gồm cả 5 vai trò (Admin, Sales Staff, Warehouse Staff, Designer, Customer).
+- Bao gồm đơn hàng online, đơn tại quầy (counter order), giao dịch thanh toán (VNPay + tiền mặt).
+- Bao gồm yêu cầu thiết kế riêng (Custom Design), tác vụ thử đồ AI (Try-on), mã QR, chat, thông báo.
 - Chạy bằng 1 lệnh: python -m backend.shared.database.seed
 """
 import asyncio
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Dict, Any, List
 from sqlalchemy import select
 
 from backend.shared.database.session import AsyncSessionLocal, init_tables
-from backend.shared.models import Store, Category, Product, ProductImage, ProductSize
+from backend.shared.enums import (
+    UserRole, Gender, OrderStatus, PaymentStatus, PaymentMethod, ShippingMethod,
+    DesignRequestStatus, TryOnJobStatus, NotificationType, ChatMessageType
+)
+from backend.shared.models import (
+    Store, Category, Product, ProductImage, ProductSize,
+    User, UserAddress, Order, OrderItem, PaymentTransaction,
+    CartItem, WishlistItem, DesignRequest, DesignConcept, DesignRevision,
+    TryOnJob, ChatConversation, ChatMessage, Notification, ProductQRCode
+)
 
 
 async def run_seed() -> None:
@@ -21,12 +33,12 @@ async def run_seed() -> None:
     print("=" * 70)
 
     # 1. Đảm bảo bảng đã tồn tại
-    print("[1/4] Kiểm tra và khởi tạo các bảng cơ sở dữ liệu...")
+    print("[1/9] Kiểm tra và khởi tạo các bảng cơ sở dữ liệu...")
     await init_tables()
 
     async with AsyncSessionLocal() as session:
         # 2. Khởi tạo Cửa hàng mẫu (Store)
-        print("[2/4] Kiểm tra & nạp Cửa hàng thời trang...")
+        print("[2/9] Kiểm tra & nạp Cửa hàng thời trang...")
         store_stmt = select(Store).where(Store.name == "VirtuFit Flagship Store - TP.HCM")
         store = (await session.execute(store_stmt)).scalars().first()
         if not store:
@@ -43,7 +55,7 @@ async def run_seed() -> None:
             print(f"  ~ Cửa hàng đã tồn tại (ID={store.store_id}), bỏ qua.")
 
         # 3. Khởi tạo Danh mục phân cấp (Categories)
-        print("[3/4] Kiểm tra & nạp Cây danh mục thời trang...")
+        print("[3/9] Kiểm tra & nạp Cây danh mục thời trang...")
         categories_data = [
             {"name": "Áo Nam", "parent": None},
             {"name": "Áo Thun Nam", "parent": "Áo Nam"},
@@ -78,10 +90,8 @@ async def run_seed() -> None:
                 cat_map[c_name] = existing_cat
 
         # 4. Khởi tạo Danh sách sản phẩm mẫu (Products with Sizes & Images)
-        print("[4/4] Kiểm tra & nạp Sản phẩm, Kích thước đo may & Hình ảnh...")
-        
+        print("[4/9] Kiểm tra & nạp Sản phẩm, Kích thước đo may & Hình ảnh...")
         products_seed_data: List[Dict[str, Any]] = [
-            # --- POSITIVE CASES: Hàng bán chạy, đủ size, có giảm giá ---
             {
                 "name": "Áo Thun Cotton Oversize Form Rộng Basic",
                 "category": "Áo Thun Nam",
@@ -217,9 +227,6 @@ async def run_seed() -> None:
                     {"label": "M", "stock": 20, "chest": 0.0, "waist": 72.0, "length": 76.0}
                 ]
             },
-
-            # --- NEGATIVE CASE 1: SẢN PHẨM HẾT HÀNG (Out of Stock) ---
-            # Dùng để kiểm thử bộ lọc `in_stock_only=true` (sản phẩm này sẽ biến mất khi bật filter)
             {
                 "name": "Áo Khoác Bomber Da Lộn Phối Tay Limited Edition",
                 "category": "Áo Nam",
@@ -238,9 +245,6 @@ async def run_seed() -> None:
                     {"label": "L", "stock": 0, "chest": 110.0, "waist": 96.0, "length": 70.0}
                 ]
             },
-
-            # --- NEGATIVE CASE 2: SẢN PHẨM ẨN KHỎI HỆ THỐNG (Inactive) ---
-            # Dùng để kiểm thử bảo mật: Sản phẩm này KHÔNG BAO GIỜ được xuất hiện trên catalog hay search
             {
                 "name": "Áo Thun Cũ Mẫu Lỗi Năm Ngoái (Ngừng Kinh Doanh)",
                 "category": "Áo Thun Nam",
@@ -258,9 +262,6 @@ async def run_seed() -> None:
                     {"label": "M", "stock": 10, "chest": 96.0, "waist": 80.0, "length": 68.0}
                 ]
             },
-
-            # --- NEGATIVE CASE 3: SẢN PHẨM LẺ SIZE (Chỉ còn đúng 1 size XL, các size khác hết) ---
-            # Dùng để kiểm thử lọc theo `size=M` thì không ra, nhưng lọc `size=XL` thì ra
             {
                 "name": "Quần Tây Âu Nam Cạp Cao Xếp Ly Form Rộng Classic",
                 "category": "Quần Tây Âu",
@@ -282,27 +283,19 @@ async def run_seed() -> None:
             }
         ]
 
-        created_count = 0
-        skipped_count = 0
-
+        saved_products: Dict[str, Product] = {}
         for p_data in products_seed_data:
             p_name = p_data["name"]
-            p_cat_name = p_data["category"]
-            cat_obj = cat_map.get(p_cat_name)
-
+            cat_obj = cat_map.get(p_data["category"])
             if not cat_obj:
-                print(f"  ! Không tìm thấy category '{p_cat_name}', bỏ qua sản phẩm: {p_name}")
                 continue
 
-            # Kiểm tra xem sản phẩm đã tồn tại hay chưa (Idempotent check)
             prod_stmt = select(Product).where(Product.name == p_name)
             existing_prod = (await session.execute(prod_stmt)).scalars().first()
-
             if existing_prod:
-                skipped_count += 1
+                saved_products[p_name] = existing_prod
                 continue
 
-            # Tạo mới sản phẩm
             product = Product(
                 store_id=store.store_id,
                 category_id=cat_obj.category_id,
@@ -317,40 +310,431 @@ async def run_seed() -> None:
             )
             session.add(product)
             await session.flush()
+            saved_products[p_name] = product
 
-            # Thêm hình ảnh
             for idx, img in enumerate(p_data["images"]):
-                p_img = ProductImage(
+                session.add(ProductImage(
                     product_id=product.product_id,
                     image_url=img["url"],
                     image_type=img["type"],
                     is_primary=img["primary"],
                     sort_order=idx
-                )
-                session.add(p_img)
+                ))
 
-            # Thêm kích thước
             for s in p_data["sizes"]:
-                p_size = ProductSize(
+                session.add(ProductSize(
                     product_id=product.product_id,
                     size_label=s["label"],
                     stock_quantity=s["stock"],
                     chest_cm=Decimal(str(s["chest"])),
                     waist_cm=Decimal(str(s["waist"])),
                     length_cm=Decimal(str(s["length"]))
-                )
-                session.add(p_size)
+                ))
+            print(f"  + Đã tạo sản phẩm: {p_name}")
 
-            created_count += 1
-            print(f"  + Đã tạo sản phẩm: {p_name} ({len(p_data['sizes'])} sizes, {len(p_data['images'])} images)")
+        await session.flush()
+
+        # 5. Khởi tạo 5 vai trò Người dùng (Users & Addresses)
+        print("[5/9] Kiểm tra & nạp Người dùng cho cả 5 vai trò nghiệp vụ...")
+        users_seed_data = [
+            {
+                "phone": "0909000001",
+                "email": "admin@virtufit.ai",
+                "full_name": "Quản Trị Viên Hệ Thống",
+                "role": UserRole.ADMIN,
+                "gender": Gender.MALE,
+                "is_verified": True,
+            },
+            {
+                "phone": "0909000002",
+                "email": "sales@virtufit.ai",
+                "full_name": "Nguyễn Văn Sales",
+                "role": UserRole.SALES_STAFF,
+                "gender": Gender.FEMALE,
+                "is_verified": True,
+            },
+            {
+                "phone": "0909000003",
+                "email": "warehouse@virtufit.ai",
+                "full_name": "Trần Văn Kho",
+                "role": UserRole.WAREHOUSE_STAFF,
+                "gender": Gender.MALE,
+                "is_verified": True,
+            },
+            {
+                "phone": "0909000004",
+                "email": "designer@virtufit.ai",
+                "full_name": "Lê Thị Designer",
+                "role": UserRole.DESIGNER,
+                "gender": Gender.FEMALE,
+                "is_verified": True,
+            },
+            {
+                "phone": "0909000005",
+                "email": "customer@virtufit.ai",
+                "full_name": "Hoàng Minh Khách",
+                "role": UserRole.CUSTOMER,
+                "gender": Gender.MALE,
+                "height_cm": 174,
+                "weight_kg": 67,
+                "is_verified": True,
+                "address": {
+                    "receiver_name": "Hoàng Minh Khách",
+                    "receiver_phone": "0909000005",
+                    "province": "TP. Hồ Chí Minh",
+                    "district": "Quận 1",
+                    "ward": "Phường Bến Nghé",
+                    "address_detail": "Tòa nhà Bitexco, 2 Hải Triều",
+                    "is_default": True
+                }
+            },
+            {
+                "phone": "0909000006",
+                "email": "customer2@virtufit.ai",
+                "full_name": "Đặng Mai Vy",
+                "role": UserRole.CUSTOMER,
+                "gender": Gender.FEMALE,
+                "height_cm": 162,
+                "weight_kg": 48,
+                "is_verified": True,
+                "address": {
+                    "receiver_name": "Đặng Mai Vy",
+                    "receiver_phone": "0909000006",
+                    "province": "TP. Hồ Chí Minh",
+                    "district": "Quận 7",
+                    "ward": "Phường Tân Phong",
+                    "address_detail": "Chung cư Sunrise City, Nguyễn Hữu Thọ",
+                    "is_default": True
+                }
+            }
+        ]
+
+        saved_users: Dict[str, User] = {}
+        for u in users_seed_data:
+            stmt = select(User).where(User.email == u["email"])
+            existing_user = (await session.execute(stmt)).scalars().first()
+            if not existing_user:
+                # Password hash tượng trưng cho dev (plaintext password = 'password123')
+                new_user = User(
+                    phone=u["phone"],
+                    email=u["email"],
+                    password_hash="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQmG6W565v8v2fQ5a6n.e",
+                    full_name=u["full_name"],
+                    role=u["role"],
+                    gender=u.get("gender"),
+                    height_cm=u.get("height_cm"),
+                    weight_kg=u.get("weight_kg"),
+                    is_active=True,
+                    is_verified=u["is_verified"]
+                )
+                session.add(new_user)
+                await session.flush()
+                saved_users[u["email"]] = new_user
+
+                if "address" in u:
+                    addr_data = u["address"]
+                    session.add(UserAddress(
+                        user_id=new_user.user_id,
+                        receiver_name=addr_data["receiver_name"],
+                        receiver_phone=addr_data["receiver_phone"],
+                        province=addr_data["province"],
+                        district=addr_data["district"],
+                        ward=addr_data["ward"],
+                        address_detail=addr_data["address_detail"],
+                        is_default=addr_data["is_default"]
+                    ))
+                print(f"  + Đã tạo User: {u['full_name']} (Role={u['role'].value})")
+            else:
+                saved_users[u["email"]] = existing_user
+
+        await session.flush()
+
+        customer_user = saved_users.get("customer@virtufit.ai")
+        sales_user = saved_users.get("sales@virtufit.ai")
+        designer_user = saved_users.get("designer@virtufit.ai")
+
+        # 6. Khởi tạo Giỏ hàng & Danh sách yêu thích mẫu
+        print("[6/9] Kiểm tra & nạp Giỏ hàng & Wishlist...")
+        tshirt_prod = saved_products.get("Áo Thun Cotton Oversize Form Rộng Basic")
+        if customer_user and tshirt_prod:
+            # Lấy size M của áo thun
+            size_stmt = select(ProductSize).where(
+                ProductSize.product_id == tshirt_prod.product_id,
+                ProductSize.size_label == "M"
+            )
+            size_m = (await session.execute(size_stmt)).scalars().first()
+
+            if size_m:
+                cart_stmt = select(CartItem).where(
+                    CartItem.user_id == customer_user.user_id,
+                    CartItem.product_id == tshirt_prod.product_id
+                )
+                if not (await session.execute(cart_stmt)).scalars().first():
+                    session.add(CartItem(
+                        user_id=customer_user.user_id,
+                        product_id=tshirt_prod.product_id,
+                        size_id=size_m.size_id,
+                        quantity=2
+                    ))
+                    print(f"  + Đã tạo Giỏ hàng mẫu cho {customer_user.full_name}")
+
+            # Wishlist: Đầm Suông Linen
+            dress_prod = saved_products.get("Đầm Suông Linen Cổ V Nữ Tính Dáng Dài")
+            if dress_prod:
+                wish_stmt = select(WishlistItem).where(
+                    WishlistItem.user_id == customer_user.user_id,
+                    WishlistItem.product_id == dress_prod.product_id
+                )
+                if not (await session.execute(wish_stmt)).scalars().first():
+                    session.add(WishlistItem(
+                        user_id=customer_user.user_id,
+                        product_id=dress_prod.product_id
+                    ))
+                    print(f"  + Đã tạo Wishlist mẫu cho {customer_user.full_name}")
+
+        await session.flush()
+
+        # 7. Khởi tạo Đơn hàng mẫu (Online VNPay, Tại Quầy Tiền Mặt, Chờ Thanh Toán)
+        print("[7/9] Kiểm tra & nạp Đơn hàng & Giao dịch thanh toán...")
+        if customer_user and tshirt_prod:
+            # Đơn 1: Đơn Online giao thành công, thanh toán VNPay
+            order_stmt1 = select(Order).where(Order.order_code == "VF-20261017-0001")
+            if not (await session.execute(order_stmt1)).scalars().first():
+                order1 = Order(
+                    order_code="VF-20261017-0001",
+                    customer_id=customer_user.user_id,
+                    store_id=store.store_id,
+                    status=OrderStatus.DELIVERED,
+                    payment_status=PaymentStatus.PAID,
+                    payment_method=PaymentMethod.VNPAY,
+                    shipping_method=ShippingMethod.EXPRESS,
+                    shipping_name="Hoàng Minh Khách",
+                    shipping_phone="0909000005",
+                    shipping_address="Tòa nhà Bitexco, 2 Hải Triều, Q.1, TP.HCM",
+                    subtotal=Decimal("378000"),
+                    shipping_fee=Decimal("30000"),
+                    discount_amount=Decimal("0"),
+                    total_amount=Decimal("408000"),
+                    is_counter_order=False,
+                    delivered_at=datetime.now(timezone.utc)
+                )
+                session.add(order1)
+                await session.flush()
+
+                # Order item
+                session.add(OrderItem(
+                    order_id=order1.order_id,
+                    product_id=tshirt_prod.product_id,
+                    product_name=tshirt_prod.name,
+                    size_label="M",
+                    color="Trắng",
+                    unit_price=Decimal("189000"),
+                    quantity=2,
+                    line_total=Decimal("378000"),
+                    product_image_url="https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800"
+                ))
+
+                # Payment txn
+                session.add(PaymentTransaction(
+                    order_id=order1.order_id,
+                    transaction_ref="VNP20261017123456",
+                    method=PaymentMethod.VNPAY,
+                    status=PaymentStatus.PAID,
+                    amount=Decimal("408000"),
+                    currency="VND",
+                    bank_code="NCB",
+                    card_type="ATM",
+                    gateway_response='{"vnp_ResponseCode": "00", "vnp_TransactionStatus": "00"}',
+                    completed_at=datetime.now(timezone.utc)
+                ))
+                print(f"  + Đã tạo đơn Online mẫu: {order1.order_code} (DELIVERED - PAID)")
+
+            # Đơn 2: Đơn Tại Quầy do Sales Staff tạo, trả tiền mặt
+            order_stmt2 = select(Order).where(Order.order_code == "VF-20261017-0002")
+            if not (await session.execute(order_stmt2)).scalars().first():
+                order2 = Order(
+                    order_code="VF-20261017-0002",
+                    customer_id=None,  # Khách vãng lai
+                    staff_id=sales_user.user_id if sales_user else None,
+                    store_id=store.store_id,
+                    status=OrderStatus.COMPLETED,
+                    payment_status=PaymentStatus.PAID,
+                    payment_method=PaymentMethod.CASH,
+                    subtotal=Decimal("380000"),
+                    shipping_fee=Decimal("0"),
+                    discount_amount=Decimal("0"),
+                    total_amount=Decimal("380000"),
+                    is_counter_order=True,
+                    cash_received=Decimal("400000"),
+                    cash_change=Decimal("20000"),
+                    delivered_at=datetime.now(timezone.utc)
+                )
+                session.add(order2)
+                await session.flush()
+
+                somi_prod = saved_products.get("Áo Sơ Mi Nam Oxford Cổ Bẻ Dài Tay Slimfit")
+                if somi_prod:
+                    session.add(OrderItem(
+                        order_id=order2.order_id,
+                        product_id=somi_prod.product_id,
+                        product_name=somi_prod.name,
+                        size_label="L",
+                        color="Xanh nhạt",
+                        unit_price=Decimal("380000"),
+                        quantity=1,
+                        line_total=Decimal("380000")
+                    ))
+
+                session.add(PaymentTransaction(
+                    order_id=order2.order_id,
+                    transaction_ref="CASH-20261017-0002",
+                    method=PaymentMethod.CASH,
+                    status=PaymentStatus.PAID,
+                    amount=Decimal("380000"),
+                    currency="VND",
+                    staff_id=sales_user.user_id if sales_user else None,
+                    staff_note="Khách đưa 400.000đ, thối lại 20.000đ",
+                    completed_at=datetime.now(timezone.utc)
+                ))
+                print(f"  + Đã tạo đơn tại quầy mẫu: {order2.order_code} (COUNTER - CASH)")
+
+        await session.flush()
+
+        # 8. Khởi tạo Yêu cầu Thiết kế Riêng (Custom Design Request) & Thử đồ AI (Try-on)
+        print("[8/9] Kiểm tra & nạp Yêu cầu thiết kế riêng & AI Try-on...")
+        if customer_user and designer_user:
+            dr_stmt = select(DesignRequest).where(DesignRequest.request_code == "DR-20261017-0001")
+            if not (await session.execute(dr_stmt)).scalars().first():
+                dr = DesignRequest(
+                    request_code="DR-20261017-0001",
+                    customer_id=customer_user.user_id,
+                    designer_id=designer_user.user_id,
+                    status=DesignRequestStatus.QUOTED,
+                    title="Thiết kế Áo Dài Cách Tân Nam Họa Tiết Hạc Trắng",
+                    description="Em muốn đặt may áo dài cách tân màu xanh navy trầm, cổ tàu 3cm, thêu họa tiết chim hạc trắng trước ngực để mặc đám cưới.",
+                    preferred_color="Xanh Navy",
+                    preferred_size="L",
+                    budget_min=Decimal("1500000"),
+                    budget_max=Decimal("2500000"),
+                    quoted_price=Decimal("2200000"),
+                    estimated_days=7,
+                    designer_note="Chất liệu vải lụa tơ tằm dệt cao cấp, thêu tay thủ công mũi đột sắc sảo.",
+                    quoted_at=datetime.now(timezone.utc)
+                )
+                session.add(dr)
+                await session.flush()
+
+                # AI concept
+                session.add(DesignConcept(
+                    request_id=dr.request_id,
+                    image_url="designs/concept_navy_crane_01.png",
+                    prompt_used="Modern Vietnamese Ao Dai for men, navy blue silk, minimal white crane embroidery on chest, studio lighting",
+                    ai_provider="Stable Diffusion XL",
+                    is_selected=1
+                ))
+
+                # Revision message
+                session.add(DesignRevision(
+                    request_id=dr.request_id,
+                    author_id=designer_user.user_id,
+                    content="Chào anh Khách, em đã lên concept số 1 và báo giá 2.200.000đ hoàn thiện trong 7 ngày. Anh xem hình concept và xác nhận giúp em nhé!",
+                    revision_number=1
+                ))
+                print(f"  + Đã tạo Design Request mẫu: {dr.request_code}")
+
+            # AI Try-on Job
+            tryon_stmt = select(TryOnJob).where(TryOnJob.user_id == customer_user.user_id)
+            if not (await session.execute(tryon_stmt)).scalars().first() and tshirt_prod:
+                session.add(TryOnJob(
+                    user_id=customer_user.user_id,
+                    product_id=tshirt_prod.product_id,
+                    status=TryOnJobStatus.COMPLETED,
+                    input_image_key="users/tryon/user_avatar_pose.jpg",
+                    product_image_key="products/tshirt_front.jpg",
+                    result_image_key="users/tryon/result_tshirt_fit.jpg",
+                    ai_provider="IDM-VTON",
+                    processing_time_ms=4200,
+                    completed_at=datetime.now(timezone.utc)
+                ))
+                print(f"  + Đã tạo AI Try-On Job mẫu cho {customer_user.full_name}")
+
+        await session.flush()
+
+        # 9. Khởi tạo QR Code Sản Phẩm, Chat & Thông Báo mẫu
+        print("[9/9] Kiểm tra & nạp QR Code Sản phẩm, Chat & Thông báo...")
+        if tshirt_prod:
+            qr_stmt = select(ProductQRCode).where(ProductQRCode.product_id == tshirt_prod.product_id)
+            if not (await session.execute(qr_stmt)).scalars().first():
+                session.add(ProductQRCode(
+                    product_id=tshirt_prod.product_id,
+                    qr_image_url="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=virtufit://product/1",
+                    qr_data="virtufit://product/1",
+                    is_active=True
+                ))
+                print(f"  + Đã tạo QR Code cho sản phẩm: {tshirt_prod.name}")
+
+        if customer_user and sales_user:
+            # Chat conversation
+            chat_stmt = select(ChatConversation).where(ChatConversation.customer_id == customer_user.user_id)
+            if not (await session.execute(chat_stmt)).scalars().first():
+                conv = ChatConversation(
+                    customer_id=customer_user.user_id,
+                    staff_id=sales_user.user_id,
+                    subject="Tư vấn chọn size áo thun",
+                    is_active=True
+                )
+                session.add(conv)
+                await session.flush()
+
+                session.add(ChatMessage(
+                    conversation_id=conv.conversation_id,
+                    sender_id=customer_user.user_id,
+                    message_type=ChatMessageType.TEXT,
+                    content="Chào shop, mình cao 1m74 nặng 67kg thì mặc size nào vừa vặn ạ?"
+                ))
+                session.add(ChatMessage(
+                    conversation_id=conv.conversation_id,
+                    sender_id=sales_user.user_id,
+                    message_type=ChatMessageType.TEXT,
+                    content="Dạ chào anh Khách! Với số đo 1m74 - 67kg, anh mặc size L sẽ rất thoải mái theo form oversize ạ. Hoặc size M nếu anh thích mặc vừa người."
+                ))
+                print(f"  + Đã tạo Chat Conversation mẫu")
+
+            # Notifications
+            notif_stmt = select(Notification).where(Notification.user_id == customer_user.user_id)
+            if not (await session.execute(notif_stmt)).scalars().first():
+                session.add(Notification(
+                    user_id=customer_user.user_id,
+                    type=NotificationType.ORDER,
+                    title="Đơn hàng VF-20261017-0001 đã giao thành công",
+                    content="Kiện hàng của quý khách đã được giao tận tay. Cảm ơn bạn đã lựa chọn VirtuFit AI!",
+                    reference_type="order",
+                    reference_id=1,
+                    is_read=True
+                ))
+                session.add(Notification(
+                    user_id=customer_user.user_id,
+                    type=NotificationType.DESIGN,
+                    title="Designer đã gửi báo giá cho yêu cầu DR-20261017-0001",
+                    content="Nhà thiết kế Lê Thị Designer đã hoàn thành concept và gửi báo giá 2.200.000đ. Vui lòng kiểm tra và phản hồi.",
+                    reference_type="design_request",
+                    reference_id=1,
+                    is_read=False
+                ))
+                print(f"  + Đã tạo Thông báo mẫu cho {customer_user.full_name}")
 
         await session.commit()
 
         print("-" * 70)
-        print(f"✅ HOÀN TẤT SEED DỮ LIỆU:")
-        print(f"   - Tạo mới: {created_count} sản phẩm")
-        print(f"   - Đã tồn tại từ trước (bỏ qua): {skipped_count} sản phẩm")
-        print(f"   - Tổng số danh mục: {len(cat_map)} categories")
+        print("✅ HOÀN TẤT TOÀN BỘ NẠP SEED DATA:")
+        print("   ✓ Cửa hàng (Store) & 13 Danh mục (Categories)")
+        print(f"   ✓ {len(saved_products)} Sản phẩm kèm ảnh và kích thước đo may")
+        print("   ✓ 6 Tài khoản người dùng phủ đủ 5 vai trò (Admin, Sales, Warehouse, Designer, Customer)")
+        print("   ✓ Giỏ hàng & Danh sách yêu thích mẫu")
+        print("   ✓ 2 Đơn hàng (Online VNPay & Tại quầy tiền mặt)")
+        print("   ✓ 1 Yêu cầu thiết kế riêng (Custom Design) kèm Concept AI")
+        print("   ✓ 1 Tác vụ thử đồ AI (AI Try-on Job)")
+        print("   ✓ QR Code sản phẩm, Hội thoại Chat tư vấn, 2 Thông báo hệ thống")
         print("=" * 70)
 
 

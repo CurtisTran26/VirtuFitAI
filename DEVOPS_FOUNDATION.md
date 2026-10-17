@@ -138,6 +138,48 @@ docker compose logs -f app-api
   - *Negative 3 (Lẻ size):* `Quần Tây Âu Classic` chỉ còn đúng 1 chiếc size XL (để test lọc `size=M` thì không ra, `size=XL` thì ra).
 - [x] **Kích hoạt bằng 1 lệnh duy nhất:** Dễ dàng chạy từ máy host hoặc trực tiếp trong container.
 
+### [Giai đoạn 4] Quét mã QR tại cửa hàng & Resolve thông tin sản phẩm (In-Store QR Code Scan) — *Hoàn thành*
+
+#### 1. Nguyên lý nghiệp vụ & Quy tắc hệ thống (Business Rules)
+- [x] **Trải nghiệm O2O (Online-to-Offline):** Khách hàng đến cửa hàng vật lý, dùng ứng dụng Mobile (hoặc camera điện thoại) quét mã QR đính trên tem mác áo/quần để mở ngay trang chi tiết sản phẩm và kích hoạt **Phòng thử đồ ảo AI (AI Try-On Fitting Room)** với số đo cơ thể cá nhân.
+- [x] **Quy tắc phân biệt QR (README):** `QR sản phẩm KHÁC QR chuyển khoản thanh toán`. QR sản phẩm dùng để tra cứu thông tin sản phẩm và thử đồ; QR chuyển khoản là mã VietQR/VNPay phục vụ thanh toán đơn hàng.
+
+#### 2. Dịch vụ phân giải đa định dạng (`backend/app-api/app/services/qr_scan/service.py`)
+- [x] **Nhận diện linh hoạt đa định dạng QR:**
+  - *Deep Link di động:* `virtufit://product/{id}` (mở thẳng trong ứng dụng React Native của bạn Duy).
+  - *Web URL chuẩn:* `https://virtufit.vn/products/{id}` (quét bằng camera iPhone/Android thông thường cũng mở được).
+  - *Mã định danh mã vạch:* `VF-PROD-0001` hoặc ID thuần túy `1`.
+  - *Tra cứu DB:* Tự động query bảng `product_qr_codes` nếu quét mã chuỗi ngẫu nhiên.
+- [x] **Kiểm tra an toàn & Trạng thái kinh doanh:** Chỉ resolve các sản phẩm có `is_active == True`. Nếu sản phẩm đã ngừng kinh doanh hoặc không tồn tại, trả về lỗi rõ nghĩa `HTTP 404`.
+- [x] **Đánh giá tính sẵn sàng cho AI Try-On (`try_on_ready`):** Tự động kiểm tra sản phẩm có đủ hình ảnh và thông số may mặc (ngực, eo, dài) hay không để bật tính năng thử đồ.
+- [x] **Tự động tăng `view_count`:** Đếm lượt quan tâm thực tế của khách hàng tại cửa hàng vật lý.
+
+#### 3. API Endpoint chuẩn OpenAPI Contract (`GET /api/v1/qr/scan`)
+- [x] **`GET /api/v1/qr/scan?code=...`:** Nhận chuỗi quét được, giải mã và trả về toàn bộ thông tin sản phẩm, bảng size, thông số số đo, ảnh sản phẩm, liên kết Deep Link và Web URL.
+
+#### 4. Khả năng sinh ảnh QR chuẩn chất lượng cao
+- [x] **Thư viện chuẩn `qrcode[pil]`:** Cung cấp sẵn hàm sinh ảnh QR PNG chất lượng cao, upload tự động lên MinIO public bucket `virtufit-public/qr-codes/` để in tem mác vật lý (sẵn sàng cho Management API sau này).
+
+### [Giai đoạn 5] API Hồ sơ người dùng & Số đo may mặc cho AI Try-On (Profile & Measurements) — *Hoàn thành*
+
+#### 1. Cơ chế Xác thực Linh hoạt & Tiện lợi (Security & Auth Dependencies)
+- [x] **JWT Bearer Token chuẩn RFC 6750 (`security.py`):** Xác thực chữ ký token, hạn sử dụng và giải mã `user_id`.
+- [x] **Cơ chế Dev Mode Fallback:** Để hỗ trợ đội Frontend (Duy - Mobile, Lộc - Web) kiểm thử ngay lập tức mà không bị nghẽn ở màn hình đăng nhập:
+  - Chấp nhận Bearer token dạng `dev-token-<user_id>`.
+  - Chấp nhận custom header `X-User-Id: <user_id>`.
+  - Tự động fallback lấy Customer mẫu đầu tiên trong DB khi dev nếu không truyền header nào.
+
+#### 2. Dịch vụ Hồ sơ cá nhân (`backend/app-api/app/services/profile/service.py`)
+- [x] **Tích hợp thông số thử đồ AI:** Tự động tính chỉ số khối cơ thể **BMI** và **đề xuất size quần áo chuẩn theo form người Việt** (S, M, L, XL, XXL) dựa trên chiều cao (`height_cm`) và cân nặng (`weight_kg`).
+- [x] **Đổi mật khẩu an toàn:** Mã hóa bằng thuật toán `bcrypt`, bắt buộc xác thực mật khẩu cũ và ngăn chặn đặt mật khẩu mới trùng mật khẩu cũ.
+- [x] **Tải ảnh đại diện trực tiếp (Direct Avatar Upload):** Kiểm tra an toàn file ảnh, tự động đẩy lên MinIO public bucket `virtufit-public/avatars/` và lưu URL mới vào hồ sơ.
+
+#### 3. Bộ API Profile đầy đủ (`/api/v1/users/me*`)
+- [x] **`GET /api/v1/users/me`:** Lấy thông tin cá nhân, vai trò, số đo chiều cao, cân nặng, BMI và size đề xuất.
+- [x] **`PUT /api/v1/users/me`:** Cập nhật họ tên, giới tính, chiều cao (cm), cân nặng (kg) và ảnh đại diện.
+- [x] **`PUT /api/v1/users/me/password`:** Đổi mật khẩu tài khoản.
+- [x] **`POST /api/v1/users/me/avatar`:** Upload trực tiếp file ảnh avatar lên MinIO.
+
 ---
 
 ## 🛠 Hướng dẫn cho thành viên nhóm khi kéo code về (Quickstart)
@@ -161,7 +203,7 @@ docker compose logs -f app-api
 ```
 
 ### Bước 3: Nạp dữ liệu mẫu (Seed Data) — Chạy 1 lệnh duy nhất!
-Sau khi container đã chạy, bạn chạy lệnh sau để tự động tạo bảng và nạp 10+ sản phẩm mẫu:
+Sau khi container đã chạy, bạn chạy lệnh sau để tự động tạo bảng và nạp đầy đủ dữ liệu mẫu:
 ```powershell
 # Cách 1 (Khuyên dùng - chạy trực tiếp trong container Docker):
 docker compose exec app-api python -m backend.shared.database.seed
@@ -173,10 +215,17 @@ python -m backend.shared.database.seed
 
 ### Bước 4: Kiểm tra kết nối từ trình duyệt / Postman
 * **Tài liệu API tương tác (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
+  - Nhóm **Profile**:
+    - `GET /api/v1/users/me` -> Xem hồ sơ cá nhân và số đo AI (tự động nhận tài khoản Customer mẫu khi dev).
+    - `PUT /api/v1/users/me` -> Thử cập nhật chiều cao 178cm, cân nặng 70kg -> Xem BMI và gợi ý size L.
+    - `PUT /api/v1/users/me/password` -> Đổi mật khẩu.
+    - `POST /api/v1/users/me/avatar` -> Tải ảnh đại diện lên MinIO.
+  - Nhóm **QR Code**:
+    - `GET /api/v1/qr/scan?code=virtufit://product/1` -> Trả về thông tin sản phẩm và phòng thử đồ AI.
   - Nhóm **Catalog & Products**:
     - `GET /catalog/categories` -> Xem cây danh mục.
-    - `GET /catalog/products` -> Thử nghiệm tìm kiếm `q=áo`, lọc `min_price=200000`, `size=L`, `in_stock_only=true`.
-    - `GET /catalog/products/1` -> Xem chi tiết sản phẩm và bảng số đo.
+    - `GET /catalog/products` -> Tìm kiếm và lọc sản phẩm.
+    - `GET /catalog/products/1` -> Xem chi tiết sản phẩm.
   - Nhóm **Media & Cloud Storage**:
     - `POST /media/upload` -> Tải ảnh lên MinIO.
     - `GET /media/presigned-url` -> Lấy link xem ảnh riêng tư.
@@ -201,6 +250,9 @@ File này sẽ được cập nhật sau mỗi lần hoàn thành các module d�
 - [x] **Giai đoạn 1: Thiết lập Hạ tầng cơ sở (DevOps Foundation)**
 - [x] **Giai đoạn 2: Cloud Object Storage & Phân quyền hình ảnh (MinIO/S3)**
 - [x] **Giai đoạn 3: Database Models, Seed Data & API Catalog/Search/Filter**
+- [x] **Giai đoạn 4: API Quét & Resolve Mã QR Sản phẩm tại cửa hàng (In-Store QR Scan)**
+- [x] **Giai đoạn 5: API Hồ sơ người dùng & Số đo may mặc cho AI Try-On (Profile & Measurements)**
+
 
 
 

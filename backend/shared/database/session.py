@@ -5,13 +5,26 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 
-from app.core.config import settings
+import os
+
+try:
+    from app.core.config import settings
+    DB_URL = settings.DATABASE_URL
+    DB_POOL = settings.DB_POOL_SIZE
+    DB_OVERFLOW = settings.DB_MAX_OVERFLOW
+except Exception:
+    DB_URL = os.getenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://virtufit_user:virtufit_secure_password_dev@localhost:5432/virtufit_db"
+    )
+    DB_POOL = int(os.getenv("DB_POOL_SIZE", "10"))
+    DB_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "20"))
 
 # Khởi tạo Async Engine cho PostgreSQL
 engine = create_async_engine(
-    settings.DATABASE_URL,
-    pool_size=settings.DB_POOL_SIZE,
-    max_overflow=settings.DB_MAX_OVERFLOW,
+    DB_URL,
+    pool_size=DB_POOL,
+    max_overflow=DB_OVERFLOW,
     pool_pre_ping=True,
     echo=False
 )
