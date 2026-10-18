@@ -55,6 +55,22 @@ class Settings(BaseSettings):
     STORAGE_PRESIGNED_EXPIRATION_SECONDS: int = 1800
     STORAGE_MAX_FILE_SIZE_BYTES: int = 5242880 # 5MB
 
+    # Phone OTP & SMS Gateway
+    SMS_PROVIDER: str = "mock" # mock | twilio | speedsms
+    OTP_TTL_SECONDS: int = 300 # 5 phút
+    OTP_COOLDOWN_SECONDS: int = 60 # 60 giây chờ gửi lại
+    OTP_MAX_ATTEMPTS: int = 3 # Tối đa 3 lần nhập sai
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_PHONE_NUMBER: str = ""
+    SPEEDSMS_ACCESS_TOKEN: str = ""
+
+    # Google OAuth2 Authentication
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+
+
+
 
     @property
     def cors_origins_list(self) -> List[str]:

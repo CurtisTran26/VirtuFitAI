@@ -10,6 +10,7 @@ from app.routers.media import router as media_router
 from app.routers.catalog import router as catalog_router
 from app.routers.qr_scan import router as qr_router
 from app.routers.profiles import router as profile_router
+from app.routers.auth import router as auth_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -34,6 +35,8 @@ app.include_router(media_router)
 app.include_router(catalog_router)
 app.include_router(qr_router)
 app.include_router(profile_router)
+app.include_router(auth_router)
+
 
 
 

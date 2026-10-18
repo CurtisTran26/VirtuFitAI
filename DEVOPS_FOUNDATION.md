@@ -180,6 +180,40 @@ docker compose logs -f app-api
 - [x] **`PUT /api/v1/users/me/password`:** Đổi mật khẩu tài khoản.
 - [x] **`POST /api/v1/users/me/avatar`:** Upload trực tiếp file ảnh avatar lên MinIO.
 
+### [Giai đoạn 6] Tích hợp Xác thực OTP Điện thoại & Đăng nhập không cần mật khẩu (Phone OTP & Passwordless Login) — *Hoàn thành*
+
+#### 1. Kiến trúc Provider gửi SMS linh hoạt (Strategy Pattern)
+- [x] **`MockSMSProvider` (Mặc định cho Dev & Đồ án):** In mã OTP nổi bật ra màn hình Terminal console kèm thông tin thời gian; trả về `debug_otp` trong response khi `APP_DEBUG=true` để đội Mobile (bạn Duy) và Web (bạn Lộc) test liền mạch mà không tốn chi phí SMS.
+- [x] **`TwilioSMSProvider`:** Hỗ trợ cắm API credentials qua biến môi trường (`SMS_PROVIDER=twilio`) để gửi SMS thật đến mọi nhà mạng Việt Nam.
+
+#### 2. Quản lý mã OTP và Bảo mật chống Brute-force với Redis
+- [x] **Tự động hết hạn (TTL):** Lưu mã OTP 6 chữ số ngẫu nhiên trong Redis với thời hạn sống 5 phút (`OTP_TTL_SECONDS=300`).
+- [x] **Chống Spam SMS (Cooldown 60s):** Cơ chế khóa tạm thời 60 giây giữa 2 lần bấm "Gửi lại mã" (`otp:cooldown:{phone}`).
+- [x] **Chống Brute-force (Tối đa 3 lần thử):** Nếu người dùng nhập sai mã quá 3 lần, hệ thống lập tức hủy mã OTP trong Redis để chống hacker dò mã tự động.
+- [x] **Verification Token:** Khi verify thành công, sinh `verification_token` dùng một lần (TTL 10 phút) để đảm bảo tính toàn vẹn cho các bước đăng ký/đổi mật khẩu.
+
+#### 3. Bộ API Xác thực qua Điện thoại đầy đủ (`/api/v1/auth/*`)
+- [x] **`POST /api/v1/auth/otp/send`:** Chuẩn hóa số điện thoại Việt Nam (+84 / 090...), tạo mã 6 số, gửi SMS và trả thời gian cooldown.
+- [x] **`POST /api/v1/auth/otp/verify`:** Xác thực mã OTP và cấp `verification_token`.
+- [x] **`POST /api/v1/auth/otp/login` (Passwordless Login):** Khách hàng chỉ cần nhập SĐT + OTP để đăng nhập. Nếu là số điện thoại mới, hệ thống **tự động tạo tài khoản Customer** và cấp cặp JWT Access Token (hạn 7 ngày) + Refresh Token (hạn 30 ngày).
+- [x] **`POST /api/v1/auth/password/reset-with-otp`:** Quên mật khẩu có thể xác thực bằng OTP và đặt lại mật khẩu mới mà không cần email OTP (đúng theo quy tắc nghiệp vụ `README.md`).
+
+### [Giai đoạn 7] Xác minh Google OAuth2 ID Token & Đăng nhập một chạm (Google Token Verification) — *Hoàn thành*
+
+#### 1. Cơ chế Xác minh kép (Dual Verification Architecture)
+- [x] **Xác minh trực tiếp với Google OAuth2 API (`verifier.py`):** Sử dụng endpoint chuẩn `https://oauth2.googleapis.com/tokeninfo?id_token=...` bằng `httpx` bất đồng bộ để kiểm tra chữ ký mã hóa, thời hạn sống của token, trạng thái `email_verified`, và đối chiếu Audience `aud == GOOGLE_CLIENT_ID`.
+- [x] **Hỗ trợ Mock Token khi Development:** Để đội Mobile (**Duy**) và Web (**Lộc**) có thể phát triển và kiểm thử giao diện đăng nhập Google ngay lập tức mà không bị phụ thuộc vào việc tạo tài khoản Google Cloud Console:
+  - Chấp nhận token mẫu: `mock-google-token` (hoặc `mock-google:email@gmail.com:Họ Tên`).
+  - Tự động trích xuất profile giả lập an toàn để test luồng cấp phát JWT Token.
+
+#### 2. Chính sách Bảo mật Tài khoản Tách biệt (Account Security Policy)
+- [x] **Chống chiếm đoạt tài khoản:** Nếu email trả về từ Google đã được đăng ký bằng phương thức mật khẩu truyền thống trước đó, hệ thống sẽ **từ chối đăng nhập và trả về mã lỗi `HTTP 409 Conflict`**: *"Email này đã được đăng ký bằng phương thức mật khẩu. Vui lòng đăng nhập bằng mật khẩu."*
+- [x] **Tự động tạo tài khoản Customer:** Nếu là khách hàng hoàn toàn mới, hệ thống tự động tạo tài khoản với `role=customer`, `is_verified=True`, `password_hash=None` (không mật khẩu) và cập nhật avatar từ Google.
+- [x] **Cấp phát JWT Token chuẩn:** Trả về cặp JWT Access Token (7 ngày) + Refresh Token (30 ngày).
+
+#### 3. API Endpoint chuẩn OpenAPI Contract (`POST /api/v1/auth/google`)
+- [x] **`POST /api/v1/auth/google`:** Nhận `id_token`, xác minh với Google, tự động đăng nhập/đăng ký và trả về `AuthTokenResponse`.
+
 ---
 
 ## 🛠 Hướng dẫn cho thành viên nhóm khi kéo code về (Quickstart)
@@ -215,10 +249,15 @@ python -m backend.shared.database.seed
 
 ### Bước 4: Kiểm tra kết nối từ trình duyệt / Postman
 * **Tài liệu API tương tác (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
+  - Nhóm **Auth & Phone OTP**:
+    - `POST /api/v1/auth/google` -> **Đăng nhập Google:** Truyền `id_token: "mock-google-token"` (hoặc `mock-google:user@gmail.com:Nguyen Van A`) -> Trả về ngay JWT Access Token.
+    - `POST /api/v1/auth/otp/send` -> Gửi mã OTP tới SĐT (VD: `0901234567`). Terminal backend sẽ in mã OTP, và response trả kèm `debug_otp`.
+    - `POST /api/v1/auth/otp/verify` -> Kiểm tra mã OTP vừa nhận.
+    - `POST /api/v1/auth/otp/login` -> Đăng nhập nhanh không cần mật khẩu -> Trả về JWT Access Token.
+    - `POST /api/v1/auth/password/reset-with-otp` -> Đặt lại mật khẩu mới bằng OTP.
   - Nhóm **Profile**:
-    - `GET /api/v1/users/me` -> Xem hồ sơ cá nhân và số đo AI (tự động nhận tài khoản Customer mẫu khi dev).
-    - `PUT /api/v1/users/me` -> Thử cập nhật chiều cao 178cm, cân nặng 70kg -> Xem BMI và gợi ý size L.
-    - `PUT /api/v1/users/me/password` -> Đổi mật khẩu.
+    - `GET /api/v1/users/me` -> Xem hồ sơ cá nhân và số đo AI.
+    - `PUT /api/v1/users/me` -> Cập nhật thông tin và số đo.
     - `POST /api/v1/users/me/avatar` -> Tải ảnh đại diện lên MinIO.
   - Nhóm **QR Code**:
     - `GET /api/v1/qr/scan?code=virtufit://product/1` -> Trả về thông tin sản phẩm và phòng thử đồ AI.
@@ -252,6 +291,15 @@ File này sẽ được cập nhật sau mỗi lần hoàn thành các module d�
 - [x] **Giai đoạn 3: Database Models, Seed Data & API Catalog/Search/Filter**
 - [x] **Giai đoạn 4: API Quét & Resolve Mã QR Sản phẩm tại cửa hàng (In-Store QR Scan)**
 - [x] **Giai đoạn 5: API Hồ sơ người dùng & Số đo may mặc cho AI Try-On (Profile & Measurements)**
+- [x] **Giai đoạn 6: Tích hợp Xác thực OTP Điện thoại & Đăng nhập không mật khẩu (Phone OTP & Passwordless Login)**
+- [x] **Giai đoạn 7: Xác minh Google OAuth2 ID Token & Đăng nhập một chạm (Google Token Verification)**
+- [ ] **Giai đoạn 8: Đăng ký tài khoản mật khẩu truyền thống & Đăng nhập username/password**
+- [ ] **Giai đoạn 9: Giỏ hàng & Danh sách yêu thích (Cart & Wishlist)**
+- [ ] **Giai đoạn 10: Đơn hàng & Thanh toán VNPay (Orders & Payments)**
+- [ ] **Giai đoạn 11: Tích hợp Thử đồ AI & Tác vụ nền (AI Virtual Try-On Background Jobs)**
+- [ ] **Giai đoạn 12: Cấu hình Backend thứ hai (`backend/management-api`)**
+
+
 
 
 
