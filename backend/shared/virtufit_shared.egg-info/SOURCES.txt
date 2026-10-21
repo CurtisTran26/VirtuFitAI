@@ -1,0 +1,7 @@
+pyproject.toml
+shared_platform.py
+virtufit_shared.egg-info/PKG-INFO
+virtufit_shared.egg-info/SOURCES.txt
+virtufit_shared.egg-info/dependency_links.txt
+virtufit_shared.egg-info/requires.txt
+virtufit_shared.egg-info/top_level.txt
