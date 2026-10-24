@@ -8,6 +8,7 @@ import LoginScreen from '../screens/auth/login/LoginScreen.jsx';
 import RegisterScreen from '../screens/auth/register/RegisterScreen.jsx';
 import ForgotPasswordScreen from '../screens/auth/forgot-password/ForgotPasswordScreen.jsx';
 import ResetPasswordScreen from '../screens/auth/reset-password/ResetPasswordScreen.jsx';
+import SearchScreen from '../screens/customer/search/SearchScreen.jsx';
 import HomeScreen from '../screens/customer/home/HomeScreen.jsx';
 import AiChatScreen from '../screens/customer/chat/AiChatScreen.jsx';
 import FeaturePendingScreen from '../screens/customer/feature-pending/FeaturePendingScreen.jsx';
@@ -46,6 +47,7 @@ function RoleNavigator() {
         ) : user.role === 'customer' ? (
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Search" component={SearchScreen} />
             <Stack.Screen name="AiChat" component={AiChatScreen} />
             <Stack.Screen name="FeaturePending" component={FeaturePendingScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -56,7 +58,7 @@ function RoleNavigator() {
             <Stack.Screen name="Wishlist" component={WishlistScreen} />
             <Stack.Screen name="CartPreview" component={CartPreviewScreen} />
           </>
-        ) : user.role === 'sales' ? (
+        ) : user.role === 'sales_staff' ? (
           <Stack.Screen name="SalesPreview" component={SalesPreviewScreen} />
         ) : <Stack.Screen name="UnsupportedRole" component={UnsupportedRoleScreen} />}
       </Stack.Navigator>

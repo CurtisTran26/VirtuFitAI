@@ -3,15 +3,12 @@ import { Ionicons } from "@expo/vector-icons";
 import CustomerPage from "../../../components/customer/CustomerPage.jsx";
 import ProductCard from "../../../components/customer/ProductCard.jsx";
 import AuthButton from "../../../components/auth/AuthButton.jsx";
-import { demoProducts } from "../../../data/demoProducts.js";
 import { useMobileSession } from "../../../context/MobileSessionContext.jsx";
 import styles from "../../../styles/customerStyles.js";
 
 export default function WishlistScreen({ navigation }) {
   const { customerData } = useMobileSession();
-  const products = demoProducts.filter((product) =>
-    customerData.wishlist.includes(product.id),
-  );
+  const products = customerData.wishlistProducts;
   return (
     <CustomerPage title="Yêu thích" navigation={navigation} scroll={false}>
       <FlatList
@@ -35,8 +32,8 @@ export default function WishlistScreen({ navigation }) {
               Bấm biểu tượng trái tim tại sản phẩm để lưu vào đây.
             </Text>
             <AuthButton
-              title="Xem sản phẩm mẫu"
-              onPress={() => navigation.navigate("SprintPreview")}
+              title="Xem sản phẩm"
+              onPress={() => navigation.navigate("Home")}
             />
           </View>
         }

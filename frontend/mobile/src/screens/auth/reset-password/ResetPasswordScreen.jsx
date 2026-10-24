@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import AuthLayout from '../../../components/auth/AuthLayout.jsx';
 import AuthInput from '../../../components/auth/AuthInput.jsx';
 import AuthButton from '../../../components/auth/AuthButton.jsx';
-import { resetPassword } from '../../../services/mockAuthService.js';
+import { resetPassword } from '../../../services/authApiService.js';
 import styles from '../../../styles/authStyles.js';
 
 export default function ResetPasswordScreen({ navigation, route }) {
@@ -18,7 +18,7 @@ export default function ResetPasswordScreen({ navigation, route }) {
     try {
       const phone = await resetPassword(route.params?.ticket, password, confirmation);
       navigation.reset({ index: 0, routes: [{ name: 'Login', params: {
-        phone, message: 'Đã đổi mật khẩu thử nghiệm. Hãy đăng nhập lại.',
+        phone, message: 'Đã đổi mật khẩu. Hãy đăng nhập lại.',
       } }] });
     } catch (err) {
       setError(err.message);

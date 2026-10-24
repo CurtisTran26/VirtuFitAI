@@ -21,6 +21,7 @@ export default function EditProfileScreen({ navigation }) {
   const [draft, setDraft] = useState({ ...customerData.profile });
   const [error, setError] = useState("");
   const [picking, setPicking] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   function change(field, value) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -54,26 +55,31 @@ export default function EditProfileScreen({ navigation }) {
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.6,
+        base64: true,
       });
-      if (!result.canceled && result.assets?.[0])
-        change("avatarUri", result.assets[0].uri);
-    } catch {
-      setError("Không mở được thư viện ảnh. Vui lòng thử lại.");
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        if (!asset.base64 || asset.base64.length > 2796204) throw new Error('Vui lòng chọn ảnh nhỏ hơn 2 MB.');
+        setDraft(current => ({ ...current, avatarUri: asset.uri, avatarData: `data:image/jpeg;base64,${asset.base64}` }));
+      }
+    } catch (err) {
+      setError(err.message || "Không mở được thư viện ảnh. Vui lòng thử lại.");
     } finally {
       setPicking(false);
     }
   }
 
-  function handleSave() {
+  async function handleSave() {
+    setSaving(true);
     try {
-      saveProfile(draft);
-      Alert.alert("Đã lưu", "Đã lưu hồ sơ trong phiên thử nghiệm.", [
+      await saveProfile(draft);
+      Alert.alert("Đã lưu", "Hồ sơ đã được lưu trên máy chủ.", [
         { text: "Đóng", onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
       setError(err.message);
-    }
+    } finally { setSaving(false); }
   }
 
   const fields = [
@@ -123,7 +129,7 @@ export default function EditProfileScreen({ navigation }) {
         <Pressable
           style={styles.editPhoto}
           onPress={chooseAvatar}
-          disabled={picking}
+          disabled={picking || saving}
           accessibilityRole="button"
           accessibilityLabel="Chọn ảnh đại diện"
         >
@@ -142,7 +148,7 @@ export default function EditProfileScreen({ navigation }) {
                 field.keyboard ? value.replace(",", ".") : value,
               )
             }
-            editable={!field.readOnly}
+            editable={!field.readOnly && !saving}
             placeholder={field.placeholder}
             placeholderTextColor="#888"
             accessibilityLabel={field.label}
@@ -163,8 +169,9 @@ export default function EditProfileScreen({ navigation }) {
       <View style={{ marginTop: 24 }}>
         <AuthButton
           title="Lưu thay đổi"
+          loading={saving}
           onPress={handleSave}
-          disabled={picking}
+          disabled={picking || saving}
         />
       </View>
     </CustomerPage>

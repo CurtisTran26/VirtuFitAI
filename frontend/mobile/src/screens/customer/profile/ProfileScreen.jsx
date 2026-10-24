@@ -1,3 +1,5 @@
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, Pressable, Image, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import CustomerPage from "../../../components/customer/CustomerPage.jsx";
@@ -5,8 +7,15 @@ import { useMobileSession } from "../../../context/MobileSessionContext.jsx";
 import styles from "../../../styles/customerStyles.js";
 
 export default function ProfileScreen({ navigation }) {
-  const { user, customerData, signOut } = useMobileSession();
+  const { user, customerData, signOut, refreshProfile } = useMobileSession();
   const { profile } = customerData;
+  const [refreshError, setRefreshError] = useState('');
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setRefreshError('');
+    refreshProfile().catch(err => { if (active) setRefreshError(err.message); });
+    return () => { active = false; };
+  }, [refreshProfile]));
   const items = [
     { title: "Hồ sơ cá nhân", icon: "person-outline", screen: "EditProfile" },
     { title: "Địa chỉ", icon: "location-outline" },
@@ -31,6 +40,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <CustomerPage title="Tài khoản" navigation={navigation}>
+      {!!refreshError && <Text style={styles.error}>{refreshError}</Text>}
       <Pressable
         style={styles.profileHeader}
         onPress={() => navigation.navigate("EditProfile")}
@@ -79,7 +89,7 @@ export default function ProfileScreen({ navigation }) {
         <Text style={[styles.menuText, { color: "#b42318" }]}>Đăng xuất</Text>
       </Pressable>
       <Text style={[styles.muted, { marginTop: 24 }]}>
-        Hồ sơ và yêu thích chỉ được giữ trong lần chạy thử này.
+        Hồ sơ và danh sách yêu thích được lưu trong tài khoản của bạn.
       </Text>
     </CustomerPage>
   );

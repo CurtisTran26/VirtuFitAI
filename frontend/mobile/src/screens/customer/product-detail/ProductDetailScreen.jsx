@@ -1,30 +1,44 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import CustomerPage from "../../../components/customer/CustomerPage.jsx";
 import ProductImage from "../../../components/customer/ProductImage.jsx";
 import AuthButton from "../../../components/auth/AuthButton.jsx";
 import {
-  getProductById,
   getVariant,
   formatPrice,
-} from "../../../data/demoProducts.js";
+} from "../../../services/appApi.js";
 import { useMobileSession } from "../../../context/MobileSessionContext.jsx";
 import styles from "../../../styles/customerStyles.js";
 
 export default function ProductDetailScreen({ navigation, route }) {
-  const product = getProductById(route.params?.productId);
-  const { customerData, toggleWishlist, addToCart } = useMobileSession();
+  const { customerData, toggleWishlist, addToCart, loadProduct } = useMobileSession();
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
   const [color, setColor] = useState("");
   const [size, setSize] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    let active = true; setLoading(true); setProduct(null); setError('');
+    setColor(''); setSize(''); setQuantity(1);
+    loadProduct(route.params?.productId).then(value => { if (active) setProduct(value); })
+      .catch(err => { if (active) setError(err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [route.params?.productId]);
+  async function handleWishlist() {
+    setWishlistLoading(true); setError('');
+    try { await toggleWishlist(product.id); } catch (err) { setError(err.message); }
+    finally { setWishlistLoading(false); }
+  }
   if (!product) {
     return (
       <CustomerPage title="Sản phẩm" navigation={navigation}>
         <Text style={styles.error}>
-          Không tìm thấy sản phẩm. Vui lòng quay lại hoặc quét mã khác.
+          {loading ? "Đang tải sản phẩm…" : error || "Không tìm thấy sản phẩm."}
         </Text>
       </CustomerPage>
     );
@@ -97,7 +111,8 @@ export default function ProductDetailScreen({ navigation, route }) {
       <View style={[styles.between, { marginTop: 24 }]}>
         <Text style={styles.price}>{formatPrice(product.price)}</Text>
         <Pressable
-          onPress={() => toggleWishlist(product.id)}
+          onPress={handleWishlist}
+          disabled={wishlistLoading}
           style={styles.iconButton}
           accessibilityRole="button"
           accessibilityLabel={selected ? "Bỏ yêu thích" : "Thêm yêu thích"}
@@ -112,11 +127,10 @@ export default function ProductDetailScreen({ navigation, route }) {
       </View>
       <Text style={styles.title}>{product.name}</Text>
       <Text style={styles.muted}>
-        Mã {product.id} · Đã bán {product.sold} · Còn {totalStock} sản phẩm mẫu
+        Mã {product.sku} · Còn {totalStock} sản phẩm
       </Text>
       <Text style={styles.section}>Mô tả</Text>
       <Text style={styles.text}>{product.description}</Text>
-      <Text style={styles.muted}>Chất liệu: {product.material}</Text>
       <Text style={styles.section}>Màu sắc</Text>
       <View style={styles.chips}>
         {product.colors.map((value) => (

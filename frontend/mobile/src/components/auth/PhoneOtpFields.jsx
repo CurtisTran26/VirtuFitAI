@@ -1,6 +1,5 @@
 import { Text, Pressable, ActivityIndicator } from "react-native";
 import AuthInput from "./AuthInput.jsx";
-import { DEMO_OTP } from "../../services/mockAuthService.js";
 import { formatTime } from "../../utils/authValidation.js";
 import styles from "../../styles/authStyles.js";
 
@@ -59,7 +58,7 @@ export default function PhoneOtpFields({
       {otp.hasSent ? (
         <>
           <Text style={styles.hint}>
-            Mã giả lập: {DEMO_OTP} • Không có SMS thật.
+            {otp.debugCode ? `Mã thử từ server: ${otp.debugCode} • Chưa gửi SMS thật.` : 'Đã gửi yêu cầu SMS. Vui lòng kiểm tra điện thoại.'}
           </Text>
           <Text style={otp.expiresSeconds > 0 ? styles.hint : styles.error}>
             {otp.expiresSeconds > 0

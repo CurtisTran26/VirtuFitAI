@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { demoProducts, formatPrice } from "../../../data/demoProducts.js";
+import { formatPrice } from "../../../services/appApi.js";
+import { useMobileSession } from "../../../context/MobileSessionContext.jsx";
 import FloatingAiButton from "../../../components/customer/FloatingAiButton.jsx";
 
 const shortcuts = [
@@ -32,14 +33,15 @@ const tabs = [
 ];
 
 export default function HomeScreen({ navigation }) {
+  const { products, catalogError, catalogLoading, refreshCatalog } = useMobileSession();
+  useEffect(() => { refreshCatalog(); }, []);
   const [area, setArea] = useState({ width: 0, height: 0 });
 
-  // Các màn của Lộc / sprint sau có màn chờ rõ ràng. Thay bằng màn thật khi gộp code.
+  // Danh mục/tìm kiếm do Duy phụ trách; các tính năng sprint sau giữ màn chờ.
   function openScreen(target, title) {
     if (target === "Home") return;
     if (
       [
-        "Search",
         "Notifications",
         "CustomDesign",
         "TryOn",
@@ -79,7 +81,7 @@ export default function HomeScreen({ navigation }) {
             {item.name}
           </Text>
           <Text style={styles.price}>{formatPrice(item.price)}</Text>
-          <Text style={styles.sold}>Đã bán {item.sold}</Text>
+          <Text style={styles.sold}>Còn {item.variants.reduce((sum, v) => sum + v.stock, 0)} sản phẩm</Text>
         </View>
       </Pressable>
     );
@@ -123,7 +125,10 @@ export default function HomeScreen({ navigation }) {
         onLayout={(event) => setArea(event.nativeEvent.layout)}
       >
         <FlatList
-          data={demoProducts}
+          data={products}
+          refreshing={catalogLoading}
+          onRefresh={refreshCatalog}
+          ListEmptyComponent={<Text>{catalogLoading ? "Đang tải sản phẩm…" : catalogError || "Cửa hàng chưa có sản phẩm."}</Text>}
           keyExtractor={(item) => item.id}
           numColumns={2}
           renderItem={renderProduct}
@@ -145,7 +150,7 @@ export default function HomeScreen({ navigation }) {
                 ))}
               </View>
               <Text style={styles.demoNote}>
-                Sản phẩm minh họa · Chưa kết nối cửa hàng
+                {catalogError || "Sản phẩm cửa hàng · Kéo xuống để cập nhật"}
               </Text>
             </View>
           }

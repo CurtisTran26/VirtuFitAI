@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { sendOtp } from '../services/mockAuthService.js';
+import { sendOtp } from '../services/authApiService.js';
 
 // Dùng chung cho đăng ký và quên mật khẩu; OTP gắn với số đã gửi.
 export default function usePhoneOtp(purpose, initialPhone = '') {
@@ -41,7 +41,7 @@ export default function usePhoneOtp(purpose, initialPhone = '') {
   return {
     phone, changePhone, code,
     changeCode: (value) => setCode(value.replace(/\D/g, '').slice(0, 6)),
-    requestCode, sending, error, hasSent: request !== null,
+    debugCode: request?.debugCode, requestCode, sending, error, hasSent: request !== null,
     resendSeconds: request ? Math.max(0, Math.ceil((request.resendAt - now) / 1000)) : 0,
     expiresSeconds: request ? Math.max(0, Math.ceil((request.expiresAt - now) / 1000)) : 0,
   };

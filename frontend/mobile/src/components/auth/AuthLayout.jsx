@@ -23,7 +23,6 @@ export default function AuthLayout({ title, subtitle, onBack, children }) {
             <Text style={styles.title}>{title}</Text>
             {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
             {children}
-            <Text style={styles.demo}>Bản thử giao diện • Chưa kết nối máy chủ</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

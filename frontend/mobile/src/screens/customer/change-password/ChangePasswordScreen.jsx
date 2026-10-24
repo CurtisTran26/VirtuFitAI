@@ -5,7 +5,7 @@ import AuthInput from "../../../components/auth/AuthInput.jsx";
 import AuthButton from "../../../components/auth/AuthButton.jsx";
 import PhoneOtpFields from "../../../components/auth/PhoneOtpFields.jsx";
 import usePhoneOtp from "../../../hooks/usePhoneOtp.js";
-import { changePassword } from "../../../services/mockAuthService.js";
+import { changePassword } from "../../../services/authApiService.js";
 import { useMobileSession } from "../../../context/MobileSessionContext.jsx";
 import styles from "../../../styles/customerStyles.js";
 
@@ -34,6 +34,8 @@ export default function ChangePasswordScreen({ navigation }) {
       setLoading(false);
     }
   }
+
+  if (user.authMethod === 'google') return <CustomerPage title="Đổi mật khẩu" navigation={navigation}><Text>Tài khoản này đăng nhập bằng Google. Hãy quản lý mật khẩu trong tài khoản Google.</Text></CustomerPage>;
 
   return (
     <CustomerPage title="Đổi mật khẩu" navigation={navigation}>

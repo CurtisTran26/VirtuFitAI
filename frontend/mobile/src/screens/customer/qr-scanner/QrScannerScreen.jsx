@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, Alert, Linking, AppState } from "react-native";
+import { View, Text, Pressable, Alert, Linking, AppState, StyleSheet } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useIsFocused } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import CustomerPage from "../../../components/customer/CustomerPage.jsx";
 import AuthButton from "../../../components/auth/AuthButton.jsx";
-import { getProductIdFromQr } from "../../../utils/productQr.js";
-import { getProductById } from "../../../data/demoProducts.js";
+import { api } from "../../../services/appApi.js";
 import styles from "../../../styles/customerStyles.js";
 
 export default function QrScannerScreen({ navigation }) {
@@ -38,21 +37,15 @@ export default function QrScannerScreen({ navigation }) {
     setPaused(false);
   }
 
-  function handleScanned({ data }) {
+  async function handleScanned({ data }) {
     if (scanLocked.current) return;
-    scanLocked.current = true;
-    setPaused(true);
-    const id = getProductIdFromQr(data);
-    if (!id || !getProductById(id)) {
-      Alert.alert(
-        "Không tìm thấy sản phẩm",
-        "Mã QR không hợp lệ hoặc sản phẩm chưa có trong bộ dữ liệu thử.",
-        [{ text: "Quét lại", onPress: resumeScan }],
-        { cancelable: false },
-      );
-      return;
+    scanLocked.current = true; setPaused(true);
+    try {
+      const result = await api('/qr/scan', { method: 'POST', body: { content: data } });
+      navigation.replace('ProductDetail', { productId: result.product.id });
+    } catch (error) {
+      Alert.alert('Không mở được sản phẩm', error.message, [{ text: 'Quét lại', onPress: resumeScan }], { cancelable: false });
     }
-    navigation.replace("ProductDetail", { productId: id });
   }
 
   async function allowCamera() {
@@ -97,9 +90,9 @@ export default function QrScannerScreen({ navigation }) {
             }
           />
           <AuthButton
-            title="Xem sản phẩm mẫu"
+            title="Xem sản phẩm"
             onPress={() =>
-              navigation.replace("ProductDetail", { productId: "SP001" })
+              navigation.navigate("Home")
             }
           />
         </View>
@@ -127,11 +120,11 @@ export default function QrScannerScreen({ navigation }) {
         </Pressable>
       }
     >
-      <View style={styles.cameraFrame}>
+      <View style={scannerStyles.frame}>
         {/* Camera chỉ hoạt động khi màn này đang được xem và app ở foreground. */}
         {isFocused && appActive && (
           <CameraView
-            style={styles.flex}
+            style={scannerStyles.fill}
             facing="back"
             enableTorch={torch}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
@@ -141,22 +134,31 @@ export default function QrScannerScreen({ navigation }) {
             }
           />
         )}
-        <View style={styles.cameraOverlay} pointerEvents="none">
-          <View style={styles.scanBox} />
-          <Text style={styles.scanHint}>Đặt mã QR trước camera</Text>
+        <View style={scannerStyles.overlay} pointerEvents="none">
+          <View style={scannerStyles.box} />
+          <Text style={scannerStyles.hint}>Đặt mã QR trước camera</Text>
         </View>
       </View>
       <View style={styles.cameraActions}>
         <Text style={[styles.muted, styles.centerText]}>
-          Dùng các mã trong thư mục QR-MAU của gói để thử.
+          Quét mã UUID hoặc VFIT:mã-sản-phẩm của cửa hàng.
         </Text>
         <AuthButton
-          title="Xem sản phẩm mẫu (không quét)"
+          title="Xem sản phẩm"
           onPress={() =>
-            navigation.replace("ProductDetail", { productId: "SP001" })
+            navigation.navigate("Home")
           }
         />
       </View>
     </CustomerPage>
   );
 }
+
+// Camera và lớp khung cùng phủ một vùng cha, không chia chiều cao thành hai phần.
+const scannerStyles = StyleSheet.create({
+  frame: { flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: '#111' },
+  fill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
+  box: { width: '70%', maxWidth: 280, aspectRatio: 1, borderWidth: 2, borderColor: '#fff', borderRadius: 12 },
+  hint: { position: 'absolute', bottom: 16, left: 16, right: 16, color: '#fff', textAlign: 'center', backgroundColor: '#0009', padding: 12 },
+});

@@ -4,7 +4,7 @@ import AuthLayout from '../../../components/auth/AuthLayout.jsx';
 import AuthButton from '../../../components/auth/AuthButton.jsx';
 import PhoneOtpFields from '../../../components/auth/PhoneOtpFields.jsx';
 import usePhoneOtp from '../../../hooks/usePhoneOtp.js';
-import { verifyResetOtp } from '../../../services/mockAuthService.js';
+import { verifyResetOtp } from '../../../services/authApiService.js';
 import styles from '../../../styles/authStyles.js';
 
 export default function ForgotPasswordScreen({ navigation }) {

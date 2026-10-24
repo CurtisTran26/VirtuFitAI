@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // Client ID là định danh công khai. KHÔNG đưa Google client secret vào app.
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 const IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
-const API_URL = process.env.EXPO_PUBLIC_APP_API_URL;
+import { api } from './appApi.js';
 
 export async function signInWithGoogle() {
   if (Constants.executionEnvironment === 'storeClient') {
@@ -40,32 +40,5 @@ export async function signInWithGoogle() {
   if (result.type !== 'success' || !result.data?.idToken) {
     throw new Error('Google chưa trả ID token. Kiểm tra Web Client ID.');
   }
-  if (!API_URL) {
-    // Google chạy được vẫn chưa có nghĩa là đã có phiên đăng nhập ở backend.
-    throw new Error(`Đã xác thực Google: ${result.data.user.email}. Chưa có app-api nên chưa đăng nhập vào VirtuFitAI. Cần cấu hình EXPO_PUBLIC_APP_API_URL.`);
-  }
-  if (!API_URL.startsWith('https://')) {
-    throw new Error('APP_API_URL cần dùng HTTPS để gửi token đăng nhập.');
-  }
-
-  // Backend xác minh ID token, tìm/tạo customer, rồi phát token của VirtuFitAI.
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
-  try {
-    const response = await fetch(`${API_URL.replace(/\/$/, '')}/auth/google`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_token: result.data.idToken }), signal: controller.signal,
-    });
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(typeof data?.detail === 'string' ? data.detail : 'Backend từ chối đăng nhập Google.');
-    }
-    if (!data) throw new Error('Backend chưa trả dữ liệu JSON hợp lệ.');
-    return data;
-  } catch (error) {
-    if (error.name === 'AbortError') throw new Error('Kết nối backend quá lâu. Vui lòng thử lại.');
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
+  return api('/auth/google', { method: 'POST', anonymous: true, body: { id_token: result.data.idToken } });
 }

@@ -3,7 +3,6 @@ import { View, Text, Pressable } from 'react-native';
 import AuthLayout from '../../../components/auth/AuthLayout.jsx';
 import AuthInput from '../../../components/auth/AuthInput.jsx';
 import AuthButton from '../../../components/auth/AuthButton.jsx';
-import { DEMO_PHONE, DEMO_PASSWORD } from '../../../services/mockAuthService.js';
 import { useMobileSession } from '../../../context/MobileSessionContext.jsx';
 import { signInWithGoogle } from '../../../services/googleAuthService.js';
 import styles from '../../../styles/authStyles.js';
@@ -35,7 +34,7 @@ export default function LoginScreen({ navigation, route }) {
     try {
       const session = await signInWithGoogle();
       // Hủy chọn tài khoản: giữ nguyên màn đăng nhập.
-      if (session) acceptGoogleSession(session);
+      if (session) await acceptGoogleSession(session);
     } catch (err) {
       setError(err.message || 'Không thể đăng nhập Google.');
     } finally {
@@ -65,7 +64,6 @@ export default function LoginScreen({ navigation, route }) {
           <Text style={styles.linkText}>Đăng ký ngay</Text>
         </Pressable>
       </View>
-      <Text style={styles.demo}>Tài khoản thử: {DEMO_PHONE} / {DEMO_PASSWORD}</Text>
     </AuthLayout>
   );
 }

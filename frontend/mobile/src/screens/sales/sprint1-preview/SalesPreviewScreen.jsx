@@ -9,7 +9,7 @@ export default function SalesPreviewScreen() {
   const { user, signOut } = useMobileSession();
   return (
     <AuthLayout title="Nhân viên bán hàng">
-      <Text style={styles.subtitle}>Tài khoản thử: {user.phone}. Đã chuyển đúng khu vực nhân viên. Dashboard bán hàng sẽ được nối sau.</Text>
+      <Text style={styles.subtitle}>Xin chào {user.full_name || user.phone}. Khu vực bán hàng tạm thời chưa khả dụng.</Text>
       <AuthButton title="Đăng xuất" onPress={signOut} />
     </AuthLayout>
   );

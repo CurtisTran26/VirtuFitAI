@@ -38,3 +38,12 @@ generated_images/
 # Operating system
 .DS_Store
 Thumbs.db
+# Local credentials and generated files
+.env
+.env.*
+!.env.example
+!.env.sample
+__pycache__/
+*.pyc
+*.egg-info/
+*.backup-*
