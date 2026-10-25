@@ -1,1 +1,1 @@
-"""Shared module for VirtuFit AI."""
+"""Shared database models and service helpers for VirtuFit APIs."""

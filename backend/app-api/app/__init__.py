@@ -1,1 +1,1 @@
-"""App API package."""
+"""VirtuFit app API application package."""
