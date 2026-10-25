@@ -1,40 +1,86 @@
-# Secrets
+# ==============================================================================
+# SECRETS & ENVIRONMENT VARIABLES (TUYỆT ĐỐI KHÔNG COMMIT)
+# ==============================================================================
 .env
 .env.*
 !.env.example
 *.pem
 *.key
+*.cert
+*.pfx
 
-# Node.js và Expo
+# ==============================================================================
+# PYTHON (FastAPI, Pytest, Virtual Environments)
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ==============================================================================
+# JAVASCRIPT / NODE.JS (React Web & React Native Expo)
+# ==============================================================================
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Frontend & Mobile Builds
 .expo/
 .expo-shared/
-dist/
-build/
 web-build/
-
-# Python
-.venv/
-venv/
-__pycache__/
-*.pyc
-.pytest_cache/
-
-# IDE
-.vscode/
-.idea/
-
-# Generated data
-uploads/
-generated_images/
-*.db
-*.sqlite3
-
-# Mobile build
+dist/
 *.apk
 *.aab
 *.ipa
 
-# Operating system
+# ==============================================================================
+# DATABASES, LOCAL STORAGE & DOCKER VOLUMES
+# ==============================================================================
+*.sqlite3
+*.db
+uploads/
+storage/
+generated_images/
+postgres-data/
+redis-data/
+
+# ==============================================================================
+# IDE & OPERATING SYSTEMS
+# ==============================================================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
+desktop.ini

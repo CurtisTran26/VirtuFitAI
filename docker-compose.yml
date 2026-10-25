@@ -1,0 +1,156 @@
+services:
+  # ----------------------------------------------------------------------------
+  # Database Service: PostgreSQL 16
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: virtufit_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-virtufit_db}
+      POSTGRES_USER: ${DB_USER:-virtufit_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-virtufit_secure_password_dev}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - virtufit_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-virtufit_user} -d ${DB_NAME:-virtufit_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ----------------------------------------------------------------------------
+  # In-Memory Cache & Message Broker: Redis 7
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: virtufit_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - virtufit_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # Cloud Object Storage: MinIO (S3-compatible)
+  # ----------------------------------------------------------------------------
+  minio:
+    image: pgsty/silo:latest
+    container_name: virtufit_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000" # S3 API endpoint
+      - "9001:9001" # Web Console dashboard
+    volumes:
+      - minio_data:/data
+    networks:
+      - virtufit_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # MinIO Bucket Auto-Provisioning (One-off initialization container)
+  # ----------------------------------------------------------------------------
+  createbuckets:
+    image: pgsty/mc:latest
+    container_name: virtufit_createbuckets
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - virtufit_network
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set localminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb localminio/virtufit-public --ignore-existing;
+      /usr/bin/mc mb localminio/virtufit-private --ignore-existing;
+      /usr/bin/mc anonymous set download localminio/virtufit-public;
+      /usr/bin/mc anonymous set none localminio/virtufit-private;
+      echo 'MinIO buckets virtufit-public and virtufit-private initialized successfully!';
+      exit 0;
+      "
+
+  # ----------------------------------------------------------------------------
+  # Backend API Service: FastAPI (App API)
+  # ----------------------------------------------------------------------------
+  app-api:
+    build:
+      context: .
+      dockerfile: backend/app-api/Dockerfile
+    container_name: virtufit_app_api
+    restart: unless-stopped
+    env_file:
+      - .env.example
+    environment:
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+      - STORAGE_ENDPOINT=http://minio:9000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app-api:/app/backend/app-api
+      - ./backend/shared:/app/backend/shared
+      - ./alembic.ini:/app/alembic.ini
+      - ./database:/app/database
+    networks:
+      - virtufit_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+# ==============================================================================
+# VOLUMES DEFINITION
+# ==============================================================================
+volumes:
+  postgres_data:
+    name: virtufit_postgres_data
+    driver: local
+  redis_data:
+    name: virtufit_redis_data
+    driver: local
+  minio_data:
+    name: virtufit_minio_data
+    driver: local
+
+# ==============================================================================
+# NETWORKS DEFINITION
+# ==============================================================================
+networks:
+  virtufit_network:
+    name: virtufit_internal_network
+    driver: bridge
+

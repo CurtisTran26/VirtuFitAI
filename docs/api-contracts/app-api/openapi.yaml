@@ -1,0 +1,545 @@
+openapi: 3.1.0
+info:
+  title: VirtuFit AI - Customer App API Contract
+  version: 1.0.0
+  description: |
+    API dành riêng cho ứng dụng di động khách hàng (Mobile App - Expo React Native)
+    và Web khách hàng (Customer Web).
+    Hỗ trợ duyệt catalog thời trang, thử đồ AI (Virtual Try-on), đặt may đo thiết kế riêng,
+    giỏ hàng, thanh toán trực tuyến VNPay và tra cứu mã QR tại quầy.
+servers:
+  - url: http://localhost:8000
+    description: Development Server (App API)
+  - url: https://api.virtufit.ai
+    description: Production Server
+
+paths:
+  # ============================================================================
+  # 1. AUTHENTICATION & PROFILE
+  # ============================================================================
+  /api/v1/auth/register:
+    post:
+      summary: Đăng ký tài khoản khách hàng mới (Số điện thoại / Email)
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, password, full_name]
+              properties:
+                phone: { type: string, example: "0909123456" }
+                email: { type: string, format: email, example: "khachhang@gmail.com" }
+                password: { type: string, format: password, example: "SecurePass@123" }
+                full_name: { type: string, example: "Nguyễn Văn A" }
+      responses:
+        '201':
+          description: Đăng ký thành công, trả về access token
+        '400':
+          description: Số điện thoại hoặc email đã được sử dụng
+
+  /api/v1/auth/login:
+    post:
+      summary: Đăng nhập bằng số điện thoại/email và mật khẩu
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, example: "0909123456" }
+                password: { type: string, example: "SecurePass@123" }
+      responses:
+        '200':
+          description: Đăng nhập thành công, trả về JWT Access Token & Refresh Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Sai thông tin đăng nhập
+
+  /api/v1/auth/google:
+    post:
+      summary: Đăng nhập / Đăng ký nhanh qua Google OAuth2
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_token]
+              properties:
+                id_token: { type: string }
+      responses:
+        '200':
+          description: Xác thực Google thành công, trả về Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /api/v1/users/me:
+    get:
+      summary: Lấy thông tin cá nhân và số đo của khách hàng hiện tại
+      tags: [Profile]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Thông tin hồ sơ người dùng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+    put:
+      summary: Cập nhật hồ sơ, số đo chiều cao, cân nặng để AI gợi ý size
+      tags: [Profile]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name: { type: string }
+                height_cm: { type: integer, example: 175 }
+                weight_kg: { type: integer, example: 68 }
+                gender: { type: string, enum: [male, female, other] }
+                avatar_url: { type: string }
+      responses:
+        '200':
+          description: Cập nhật thành công
+
+  # ============================================================================
+  # 2. CATALOG & SEARCH
+  # ============================================================================
+  /api/v1/catalog/products:
+    get:
+      summary: Danh sách sản phẩm có phân trang, bộ lọc và sắp xếp
+      tags: [Catalog]
+      parameters:
+        - name: category_id
+          in: query
+          schema: { type: integer }
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: min_price
+          in: query
+          schema: { type: number }
+        - name: max_price
+          in: query
+          schema: { type: number }
+        - name: size
+          in: query
+          schema: { type: string, example: "M" }
+        - name: in_stock_only
+          in: query
+          schema: { type: boolean, default: true }
+        - name: sort_by
+          in: query
+          schema: { type: string, enum: [newest, price_asc, price_desc, popular], default: newest }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Danh sách sản phẩm thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+
+  /api/v1/catalog/products/{product_id}:
+    get:
+      summary: Xem chi tiết sản phẩm, gallery ảnh và bảng size/tồn kho
+      tags: [Catalog]
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Chi tiết sản phẩm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+        '404':
+          description: Không tìm thấy sản phẩm
+
+  /api/v1/catalog/categories:
+    get:
+      summary: Lấy cây danh mục sản phẩm 2 cấp
+      tags: [Catalog]
+      responses:
+        '200':
+          description: Danh sách cây danh mục
+
+  # ============================================================================
+  # 3. GIỎ HÀNG & WISHLIST
+  # ============================================================================
+  /api/v1/cart:
+    get:
+      summary: Lấy toàn bộ sản phẩm trong giỏ hàng kèm tính toán tổng tiền
+      tags: [Cart]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Chi tiết giỏ hàng
+
+  /api/v1/cart/items:
+    post:
+      summary: Thêm sản phẩm và size vào giỏ hàng (tự động gộp nếu đã có)
+      tags: [Cart]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, size_id, quantity]
+              properties:
+                product_id: { type: integer }
+                size_id: { type: integer }
+                quantity: { type: integer, default: 1, minimum: 1 }
+      responses:
+        '200':
+          description: Thêm vào giỏ thành công
+        '400':
+          description: Hết hàng hoặc số lượng yêu cầu vượt quá tồn kho
+
+  /api/v1/cart/items/{item_id}:
+    patch:
+      summary: Thay đổi số lượng món hàng trong giỏ
+      tags: [Cart]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Cập nhật thành công
+    delete:
+      summary: Xóa một món hàng khỏi giỏ
+      tags: [Cart]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Đã xóa thành công
+
+  # ============================================================================
+  # 4. ĐẶT HÀNG & THANH TOÁN ONLINE
+  # ============================================================================
+  /api/v1/orders:
+    post:
+      summary: Tạo đơn hàng mới từ giỏ hàng (Backend tự tính lại giá từ DB)
+      tags: [Orders]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Tạo đơn hàng thành công, trả về mã đơn và link VNPay nếu chọn VNPay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderCreatedResponse'
+    get:
+      summary: Lịch sử đơn hàng của khách hàng hiện tại
+      tags: [Orders]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Danh sách đơn hàng
+
+  /api/v1/orders/{order_code}:
+    get:
+      summary: Tra cứu chi tiết tiến trình đơn hàng theo mã đơn
+      tags: [Orders]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: order_code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Chi tiết đơn hàng
+
+  /api/v1/payments/vnpay/callback:
+    get:
+      summary: VNPay IPN/Return URL callback (Xác nhận kết quả thanh toán - Idempotent)
+      tags: [Payments]
+      responses:
+        '200':
+          description: Xử lý giao dịch thành công
+
+  # ============================================================================
+  # 5. AI VIRTUAL TRY-ON (PHÒNG THAY ĐỒ ẢO)
+  # ============================================================================
+  /api/v1/try-on/jobs:
+    post:
+      summary: Gửi yêu cầu thử đồ AI với ảnh người dùng và sản phẩm
+      tags: [Virtual Try-On]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [user_image, product_id]
+              properties:
+                user_image:
+                  type: string
+                  format: binary
+                  description: File ảnh toàn thân của người dùng (JPEG/PNG, tối đa 5MB)
+                product_id:
+                  type: integer
+                  description: ID sản phẩm cần thử
+      responses:
+        '202':
+          description: Đã tiếp nhận tác vụ AI, trả về job_id để kiểm tra trạng thái
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id: { type: integer }
+                  status: { type: string, example: "pending" }
+
+  /api/v1/try-on/jobs/{job_id}:
+    get:
+      summary: Kiểm tra tiến độ và lấy URL ảnh kết quả thử đồ AI
+      tags: [Virtual Try-On]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Trạng thái và ảnh kết quả
+
+  # ============================================================================
+  # 6. YÊU CẦU THIẾT KẾ RIÊNG (CUSTOM DESIGN REQUEST)
+  # ============================================================================
+  /api/v1/designs/requests:
+    post:
+      summary: Khách hàng gửi yêu cầu may đo/thiết kế riêng kèm mô tả và ảnh tham khảo
+      tags: [Custom Design]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDesignRequest'
+      responses:
+        '201':
+          description: Yêu cầu thiết kế đã gửi thành công
+    get:
+      summary: Danh sách các yêu cầu thiết kế của khách hàng hiện tại
+      tags: [Custom Design]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Danh sách yêu cầu thiết kế
+
+  /api/v1/designs/requests/{request_code}/approve:
+    post:
+      summary: Khách hàng phê duyệt báo giá từ Designer để chuyển thành đơn may đo
+      tags: [Custom Design]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: request_code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Đã phê duyệt, tạo đơn hàng thành công
+
+  # ============================================================================
+  # 7. QUÉT MÃ QR TẠI CỬA HÀNG
+  # ============================================================================
+  /api/v1/qr/scan:
+    get:
+      summary: Quét mã QR tại cửa hàng để mở ngay thông tin sản phẩm và phòng thử đồ
+      tags: [QR Code]
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema: { type: string, example: "virtufit://product/1" }
+      responses:
+        '200':
+          description: Thông tin chi tiết sản phẩm liên kết với mã QR
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    TokenResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, example: "bearer" }
+        expires_in: { type: integer, example: 3600 }
+        role: { type: string, example: "customer" }
+
+    UserProfile:
+      type: object
+      properties:
+        user_id: { type: integer }
+        phone: { type: string }
+        email: { type: string }
+        full_name: { type: string }
+        avatar_url: { type: string }
+        role: { type: string }
+        height_cm: { type: integer }
+        weight_kg: { type: integer }
+        gender: { type: string }
+
+    ProductListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSummary'
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+
+    ProductSummary:
+      type: object
+      properties:
+        product_id: { type: integer }
+        name: { type: string }
+        price: { type: number }
+        discount_price: { type: number, nullable: true }
+        primary_image_url: { type: string }
+        category_name: { type: string }
+        is_in_stock: { type: boolean }
+
+    ProductDetail:
+      type: object
+      properties:
+        product_id: { type: integer }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number }
+        discount_price: { type: number, nullable: true }
+        color: { type: string }
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              image_id: { type: integer }
+              image_url: { type: string }
+              image_type: { type: string }
+              is_primary: { type: boolean }
+        sizes:
+          type: array
+          items:
+            type: object
+            properties:
+              size_id: { type: integer }
+              size_label: { type: string }
+              stock_quantity: { type: integer }
+              chest_cm: { type: number }
+              waist_cm: { type: number }
+              length_cm: { type: number }
+
+    CreateOrderRequest:
+      type: object
+      required: [receiver_name, receiver_phone, shipping_address, payment_method]
+      properties:
+        receiver_name: { type: string }
+        receiver_phone: { type: string }
+        shipping_address: { type: string }
+        payment_method: { type: string, enum: [cod, vnpay, banking] }
+        shipping_method: { type: string, enum: [standard, express, store_pickup] }
+        note: { type: string }
+
+    OrderCreatedResponse:
+      type: object
+      properties:
+        order_id: { type: integer }
+        order_code: { type: string }
+        total_amount: { type: number }
+        status: { type: string }
+        payment_status: { type: string }
+        payment_url: { type: string, nullable: true }
+
+    CreateDesignRequest:
+      type: object
+      required: [title, description]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        preferred_color: { type: string }
+        preferred_size: { type: string }
+        budget_min: { type: number }
+        budget_max: { type: number }
+        reference_image_keys:
+          type: array
+          items: { type: string }
