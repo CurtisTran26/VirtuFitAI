@@ -14,6 +14,9 @@ from app.routers.users.router import router as users_router
 from app.routers.categories.router import router as categories_router
 from app.routers.products.router import router as products_router
 from app.routers.inventory.router import router as inventory_router
+from app.routers.orders.router import router as orders_router
+from app.routers.sales.router import router as sales_router
+from app.routers.returns.router import router as returns_router
 
 app = FastAPI(title="VirtuFit Management API", version="1.0.0", openapi_url="/api/v1/openapi.json", docs_url="/api/v1/docs")
 origins = [v.strip() for v in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if v.strip()]
@@ -36,5 +39,5 @@ async def unexpected_error(request, exc):
 @app.get("/api/v1/health")
 def health(): return {"status": "ok"}
 
-for route_group in (auth_router, roles_router, users_router, categories_router, products_router, inventory_router):
+for route_group in (auth_router, roles_router, users_router, categories_router, products_router, inventory_router, orders_router, sales_router, returns_router):
     app.include_router(route_group)

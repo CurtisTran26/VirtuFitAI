@@ -1,4 +1,5 @@
 from app.routers.common import *
+from app.schemas.categories import CategoryIn
 
 router = APIRouter()
 

@@ -1,4 +1,5 @@
 from app.routers.common import *
+from app.schemas.users import RoleUpdate, UserCreate
 
 router = APIRouter()
 

@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 
 from app.routers.auth.router import router as auth_router
+from app.routers.orders.router import router as orders_router
+from app.routers.returns.router import router as returns_router
 from app.routers.wishlist.router import router as wishlist_router
 
 app = FastAPI(title="VirtuFit App API", version="1.0.0", openapi_url="/api/v1/openapi.json", docs_url="/api/v1/docs")
@@ -40,4 +42,6 @@ def health():
 
 
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(orders_router, prefix="/api/v1")
+app.include_router(returns_router, prefix="/api/v1")
 app.include_router(wishlist_router, prefix="/api/v1")

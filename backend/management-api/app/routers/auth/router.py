@@ -1,4 +1,5 @@
 from app.routers.common import *
+from app.schemas.auth import ChangePassword, Login, PasswordReset, PasswordResetOtp
 
 router = APIRouter()
 

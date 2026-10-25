@@ -1,4 +1,5 @@
 from app.routers.common import *
+from app.schemas.products import ProductIn, SizeChartIn, VariantIn
 
 router = APIRouter()
 
