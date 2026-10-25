@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ----------------------------------------------------------------------------
   # Database Service: PostgreSQL 16
@@ -51,7 +49,7 @@ services:
   # Cloud Object Storage: MinIO (S3-compatible)
   # ----------------------------------------------------------------------------
   minio:
-    image: minio/minio:latest
+    image: pgsty/silo:latest
     container_name: virtufit_minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -76,7 +74,7 @@ services:
   # MinIO Bucket Auto-Provisioning (One-off initialization container)
   # ----------------------------------------------------------------------------
   createbuckets:
-    image: minio/mc:latest
+    image: pgsty/mc:latest
     container_name: virtufit_createbuckets
     depends_on:
       minio:
@@ -116,6 +114,8 @@ services:
     volumes:
       - ./backend/app-api:/app/backend/app-api
       - ./backend/shared:/app/backend/shared
+      - ./alembic.ini:/app/alembic.ini
+      - ./database:/app/database
     networks:
       - virtufit_network
     depends_on:

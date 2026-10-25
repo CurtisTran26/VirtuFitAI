@@ -16,7 +16,7 @@ class WishlistItem(Base):
     wishlist_item_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
     product_id = Column(Integer, ForeignKey("products.product_id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
         UniqueConstraint("user_id", "product_id", name="uq_wishlist_user_product"),

@@ -22,8 +22,10 @@ COPY backend/app-api/requirements.txt /app/backend/app-api/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/backend/app-api/requirements.txt
 
-# Copy source code
+# Copy source code and migrations
 COPY backend /app/backend
+COPY alembic.ini /app/alembic.ini
+COPY database /app/database
 
 WORKDIR /app/backend/app-api
 

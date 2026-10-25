@@ -25,8 +25,8 @@ class ChatConversation(Base):
     # Liên kết đến đơn/yêu cầu nếu có
     order_id = Column(Integer, ForeignKey("orders.order_id", ondelete="SET NULL"), nullable=True)
     design_request_id = Column(Integer, ForeignKey("design_requests.request_id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     customer = relationship("User", foreign_keys=[customer_id])
@@ -51,7 +51,7 @@ class ChatMessage(Base):
     content = Column(Text, nullable=False)
     image_url = Column(String(500), nullable=True)
     is_read = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     # Relationships
     conversation = relationship("ChatConversation", back_populates="messages")

@@ -33,7 +33,7 @@ class TryOnJob(Base):
     error_message = Column(Text, nullable=True)                # Lý do nếu thất bại
 
     processing_time_ms = Column(Integer, nullable=True)        # Thời gian AI xử lý (ms)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     completed_at = Column(DateTime, nullable=True)
 
     # Relationships

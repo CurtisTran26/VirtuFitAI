@@ -280,6 +280,13 @@ docker compose down
 docker compose down -v
 ```
 
+> [!NOTE]
+> **Cập nhật hạ tầng (25/10/2026):**
+> 1. Đã chuyển đổi image MinIO sang `pgsty/silo:latest` và `pgsty/mc:latest` do MinIO đóng quyền truy cập anonymous trên Docker Hub và Quay.io. Image Silo tương thích 100% với S3 API và MinIO Web Console.
+> 2. Đã bổ sung `greenlet>=3.0.0` phục vụ SQLAlchemy Async Engine.
+> 3. Đã đồng bộ kiểu dữ liệu `datetime.utcnow()` cho PostgreSQL `TIMESTAMP WITHOUT TIME ZONE`.
+> 4. Tất cả 4 services (`virtufit_postgres`, `virtufit_redis`, `virtufit_minio`, `virtufit_app_api`) đều đang chạy ở trạng thái `healthy`.
+
 ---
 
 ## 📋 Lộ trình các tính năng tiếp theo (Roadmap & Checklist)

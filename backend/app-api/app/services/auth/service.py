@@ -86,7 +86,7 @@ class AuthOTPService:
         user = (await db.execute(stmt)).scalars().first()
 
         is_new_user = False
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
 
         if user:
             if not user.is_active:
@@ -203,7 +203,7 @@ class AuthOTPService:
         full_name = google_info["full_name"]
         avatar_url = google_info.get("avatar_url")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         is_new_user = False
 
         # 2. Tìm kiếm user theo google_id

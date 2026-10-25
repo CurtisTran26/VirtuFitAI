@@ -40,7 +40,7 @@ class PaymentTransaction(Base):
     staff_id = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
     staff_note = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
 
     # Relationships

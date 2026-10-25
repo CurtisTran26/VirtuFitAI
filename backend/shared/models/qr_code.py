@@ -19,7 +19,7 @@ class ProductQRCode(Base):
     qr_image_url = Column(String(500), nullable=False)   # URL ảnh QR trên public bucket
     qr_data = Column(String(500), nullable=False)        # Nội dung encode trong QR (VD: virtufit://product/1)
     is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
     product = relationship("Product")

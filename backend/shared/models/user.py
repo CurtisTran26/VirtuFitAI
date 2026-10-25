@@ -33,8 +33,8 @@ class User(Base):
     is_verified = Column(Boolean, nullable=False, default=False)
     height_cm = Column(Integer, nullable=True)  # Chiều cao (gợi ý size)
     weight_kg = Column(Integer, nullable=True)  # Cân nặng (gợi ý size)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login_at = Column(DateTime, nullable=True)
 
     # Relationships
@@ -63,7 +63,7 @@ class UserAddress(Base):
     ward = Column(String(100), nullable=True)
     address_detail = Column(String(500), nullable=False)
     is_default = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
     user = relationship("User", back_populates="addresses")

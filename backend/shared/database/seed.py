@@ -516,7 +516,7 @@ async def run_seed() -> None:
                     discount_amount=Decimal("0"),
                     total_amount=Decimal("408000"),
                     is_counter_order=False,
-                    delivered_at=datetime.now(timezone.utc)
+                    delivered_at=datetime.utcnow()
                 )
                 session.add(order1)
                 await session.flush()
@@ -545,7 +545,7 @@ async def run_seed() -> None:
                     bank_code="NCB",
                     card_type="ATM",
                     gateway_response='{"vnp_ResponseCode": "00", "vnp_TransactionStatus": "00"}',
-                    completed_at=datetime.now(timezone.utc)
+                    completed_at=datetime.utcnow()
                 ))
                 print(f"  + Đã tạo đơn Online mẫu: {order1.order_code} (DELIVERED - PAID)")
 
@@ -557,7 +557,7 @@ async def run_seed() -> None:
                     customer_id=None,  # Khách vãng lai
                     staff_id=sales_user.user_id if sales_user else None,
                     store_id=store.store_id,
-                    status=OrderStatus.COMPLETED,
+                    status=OrderStatus.DELIVERED,
                     payment_status=PaymentStatus.PAID,
                     payment_method=PaymentMethod.CASH,
                     subtotal=Decimal("380000"),
@@ -567,7 +567,7 @@ async def run_seed() -> None:
                     is_counter_order=True,
                     cash_received=Decimal("400000"),
                     cash_change=Decimal("20000"),
-                    delivered_at=datetime.now(timezone.utc)
+                    delivered_at=datetime.utcnow()
                 )
                 session.add(order2)
                 await session.flush()
@@ -594,7 +594,7 @@ async def run_seed() -> None:
                     currency="VND",
                     staff_id=sales_user.user_id if sales_user else None,
                     staff_note="Khách đưa 400.000đ, thối lại 20.000đ",
-                    completed_at=datetime.now(timezone.utc)
+                    completed_at=datetime.utcnow()
                 ))
                 print(f"  + Đã tạo đơn tại quầy mẫu: {order2.order_code} (COUNTER - CASH)")
 
@@ -619,7 +619,7 @@ async def run_seed() -> None:
                     quoted_price=Decimal("2200000"),
                     estimated_days=7,
                     designer_note="Chất liệu vải lụa tơ tằm dệt cao cấp, thêu tay thủ công mũi đột sắc sảo.",
-                    quoted_at=datetime.now(timezone.utc)
+                    quoted_at=datetime.utcnow()
                 )
                 session.add(dr)
                 await session.flush()
@@ -654,7 +654,7 @@ async def run_seed() -> None:
                     result_image_key="users/tryon/result_tshirt_fit.jpg",
                     ai_provider="IDM-VTON",
                     processing_time_ms=4200,
-                    completed_at=datetime.now(timezone.utc)
+                    completed_at=datetime.utcnow()
                 ))
                 print(f"  + Đã tạo AI Try-On Job mẫu cho {customer_user.full_name}")
 
@@ -705,7 +705,7 @@ async def run_seed() -> None:
             if not (await session.execute(notif_stmt)).scalars().first():
                 session.add(Notification(
                     user_id=customer_user.user_id,
-                    type=NotificationType.ORDER,
+                    type=NotificationType.ORDER_UPDATE,
                     title="Đơn hàng VF-20261017-0001 đã giao thành công",
                     content="Kiện hàng của quý khách đã được giao tận tay. Cảm ơn bạn đã lựa chọn VirtuFit AI!",
                     reference_type="order",
@@ -714,7 +714,7 @@ async def run_seed() -> None:
                 ))
                 session.add(Notification(
                     user_id=customer_user.user_id,
-                    type=NotificationType.DESIGN,
+                    type=NotificationType.DESIGN_UPDATE,
                     title="Designer đã gửi báo giá cho yêu cầu DR-20261017-0001",
                     content="Nhà thiết kế Lê Thị Designer đã hoàn thành concept và gửi báo giá 2.200.000đ. Vui lòng kiểm tra và phản hồi.",
                     reference_type="design_request",

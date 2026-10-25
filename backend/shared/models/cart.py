@@ -19,8 +19,8 @@ class CartItem(Base):
     product_id = Column(Integer, ForeignKey("products.product_id", ondelete="CASCADE"), nullable=False)
     size_id = Column(Integer, ForeignKey("product_sizes.size_id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, nullable=False, default=1)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
         UniqueConstraint("user_id", "product_id", "size_id", name="uq_cart_user_product_size"),

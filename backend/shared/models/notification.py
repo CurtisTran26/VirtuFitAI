@@ -30,7 +30,7 @@ class Notification(Base):
     reference_type = Column(String(50), nullable=True)  # "order", "design_request", "tryon_job"
     reference_id = Column(Integer, nullable=True)        # ID của tài nguyên
 
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     # Relationships
     user = relationship("User", back_populates="notifications")

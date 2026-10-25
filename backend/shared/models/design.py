@@ -45,8 +45,8 @@ class DesignRequest(Base):
     # Lý do từ chối
     rejection_reason = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     quoted_at = Column(DateTime, nullable=True)
     approved_at = Column(DateTime, nullable=True)
 
@@ -71,7 +71,7 @@ class DesignConcept(Base):
     prompt_used = Column(Text, nullable=True)          # Prompt gửi cho AI
     ai_provider = Column(String(50), nullable=True)    # Tên model/API đã dùng
     is_selected = Column(Integer, nullable=False, default=0)  # 0=chưa chọn, 1=được chọn
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
     request = relationship("DesignRequest", back_populates="concepts")
@@ -90,7 +90,7 @@ class DesignRevision(Base):
     content = Column(Text, nullable=False)
     image_url = Column(String(500), nullable=True)
     revision_number = Column(Integer, nullable=False, default=1)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
     request = relationship("DesignRequest", back_populates="revisions")
