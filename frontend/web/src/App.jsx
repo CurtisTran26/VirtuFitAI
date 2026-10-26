@@ -5,9 +5,10 @@ import Login from './pages/auth/login/Login';
 import AdminDashboard from './pages/admin/dashboard/Dashboard';
 import WarehouseDashboard from './pages/warehouse/dashboard/Dashboard';
 
-const ProtectedRoute = ({ element }) => {
+const ProtectedRoute = ({ element, allowedRole }) => {
   const currentRole = localStorage.getItem('userRole');
-  if (!currentRole) {
+  const accessToken = localStorage.getItem('accessToken');
+  if (!accessToken || currentRole !== allowedRole) {
     return <Navigate to="/login" replace />;
   }
   return element;
@@ -18,8 +19,8 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/admin" element={<ProtectedRoute element={<AdminDashboard />} />} />
-        <Route path="/warehouse" element={<ProtectedRoute element={<WarehouseDashboard />} />} />
+        <Route path="/admin" element={<ProtectedRoute allowedRole="admin" element={<AdminDashboard />} />} />
+        <Route path="/warehouse" element={<ProtectedRoute allowedRole="warehouse_staff" element={<WarehouseDashboard />} />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

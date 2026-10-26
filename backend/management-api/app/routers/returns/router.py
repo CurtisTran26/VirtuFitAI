@@ -33,9 +33,14 @@ def return_detail(db: Session, return_id: UUID):
 def list_returns(status: str | None = None, page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100), user=WarehouseRole, db: Session = Depends(get_db)):
     rows = db.execute(
         text("""SELECT rr.id,rr.order_id,o.order_number,rr.customer_id,u.full_name AS customer_name,
-                      rr.reason,rr.status,rr.created_at
+                      rr.reason,rr.status,rr.created_at,
+                      string_agg(DISTINCT oi.product_name_snapshot || ' (' || oi.color_snapshot || '/' || oi.size_snapshot || ')', ', ') AS product_summary,
+                      bool_or(ri.restock) AS restocked
                FROM return_requests rr JOIN orders o ON o.id=rr.order_id JOIN users u ON u.id=rr.customer_id
+               LEFT JOIN return_items ri ON ri.return_request_id=rr.id
+               LEFT JOIN order_items oi ON oi.id=ri.order_item_id
                WHERE (CAST(:status AS text) IS NULL OR rr.status=:status)
+               GROUP BY rr.id,o.order_number,u.full_name
                ORDER BY rr.created_at DESC LIMIT :limit OFFSET :offset"""),
         {"status": status, "limit": limit, "offset": (page - 1) * limit},
     ).mappings().all()

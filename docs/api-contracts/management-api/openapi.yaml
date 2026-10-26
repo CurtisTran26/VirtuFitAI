@@ -243,10 +243,10 @@ paths:
         - name: product_id
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: string, format: uuid }
       responses:
         '200':
-          description: Sinh mã QR thành công
+          description: Sinh/làm mới mã QR, trả về qr_data và qr_image_url
 
   # ============================================================================
   # 6. BÁO CÁO DOANH THU & PHÂN TÍCH (Admin Analytics)

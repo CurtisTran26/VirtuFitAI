@@ -1,164 +1,117 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import apiClient from '../../../utils/apiClient';
 
-const initialReturns = [
-  { id: 'RT-0231', order: '#VF-1210', product: 'Áo sơ mi linen (Trắng/L)', reason: 'Không vừa size', status: 'Chờ tiếp nhận' },
-  { id: 'RT-0232', order: '#VF-1219', product: 'Đầm midi hoa (Đỏ đô/M)', reason: 'Sản phẩm lỗi chỉ', status: 'Chờ tiếp nhận' },
-  { id: 'RT-0229', order: '#VF-1198', product: 'Quần jeans slim (Xanh navy/L)', reason: 'Đổi ý', status: 'Đã nhập kho' },
-  { id: 'RT-0227', order: '#VF-1185', product: 'Váy xếp ly (Be/S)', reason: 'Giao nhầm màu', status: 'Không đạt – từ chối' },
-];
+const inputClass = 'w-full rounded-lg border border-[#24383b] bg-[#0e1a1c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#0f9d8a]';
+const formatReturnCode = (id) => `RT-${id.slice(0, 8).toUpperCase()}`;
+const formatOrderCode = (number) => number ? `#${number}` : '—';
 
-const statusStyles = {
-  'Chờ tiếp nhận': 'bg-[#3a2e12] text-[#e8930c]',
-  'Đã nhập kho': 'bg-[#0f2e24] text-[#12a66a]',
-  'Không đạt – từ chối': 'bg-[#3a1a1e] text-[#e5484d]',
+const statusFor = (item) => {
+  if (item.status === 'requested') return { label: 'Chờ tiếp nhận', style: 'bg-amber-500/10 text-amber-300' };
+  if (item.status === 'rejected') return { label: 'Không đạt – từ chối', style: 'bg-red-500/10 text-red-300' };
+  if (item.restocked) return { label: 'Đã nhập lại kho', style: 'bg-emerald-500/10 text-emerald-300' };
+  return { label: 'Đã chấp nhận', style: 'bg-emerald-500/10 text-emerald-300' };
 };
 
 const Returns = () => {
-  const [returns, setReturns] = useState(initialReturns);
-  const [selectedReturn, setSelectedReturn] = useState(null);
-  const [inspectionResult, setInspectionResult] = useState('accepted');
+  const [returns, setReturns] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [outcome, setOutcome] = useState('accepted');
   const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  const openInspection = (returnItem) => {
-    setSelectedReturn(returnItem);
-    setInspectionResult('accepted');
-    setNote('');
+  const loadReturns = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await apiClient.get('returns?page=1&limit=100');
+      setReturns(result.items || []);
+    } catch (loadError) {
+      setError(loadError.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadReturns(); }, [loadReturns]);
+
+  const openInspection = async (item) => {
+    setError('');
+    try {
+      const result = await apiClient.get(`returns/${item.id}`);
+      setSelected(result);
+      setOutcome('accepted');
+      setNote('');
+    } catch (loadError) {
+      setError(loadError.message);
+    }
   };
 
-  const closeInspection = () => {
-    setSelectedReturn(null);
-  };
-
-  const handleInspectionSubmit = (event) => {
+  const inspect = async (event) => {
     event.preventDefault();
-    if (!selectedReturn) return;
-
-    const nextStatus = inspectionResult === 'accepted' ? 'Đã nhập kho' : 'Không đạt – từ chối';
-    setReturns((currentReturns) => currentReturns.map((returnItem) => (
-      returnItem.id === selectedReturn.id
-        ? { ...returnItem, status: nextStatus, inspectionNote: note.trim() }
-        : returnItem
-    )));
-    closeInspection();
+    if (!selected || saving) return;
+    setError('');
+    setSaving(true);
+    try {
+      await apiClient.post(`returns/${selected.id}/inspect`, {
+        outcome,
+        note: note.trim(),
+        items: (selected.items || []).map((item) => ({
+          return_item_id: item.id,
+          condition_note: note.trim(),
+          restock: outcome === 'accepted',
+        })),
+      });
+      setSelected(null);
+      await loadReturns();
+    } catch (inspectError) {
+      setError(inspectError.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <>
-      <div className="space-y-4">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-bold">Tiếp nhận &amp; kiểm tra hàng trả</h1>
-        <div className="bg-[#152427] border border-[#24383b] rounded-xl overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left">
-            <thead>
-              <tr className="border-b border-[#24383b] text-[#92a9ad] text-xs">
-                <th className="px-4 py-3 font-semibold">Mã trả</th>
-                <th className="px-4 py-3 font-semibold">Đơn gốc</th>
-                <th className="px-4 py-3 font-semibold">Sản phẩm</th>
-                <th className="px-4 py-3 font-semibold">Lý do</th>
-                <th className="px-4 py-3 font-semibold">Trạng thái</th>
-                <th className="px-4 py-3" aria-label="Thao tác"></th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {returns.map((returnItem) => (
-                <tr key={returnItem.id} className="border-b border-[#24383b] last:border-0 hover:bg-[#12383a]/30 transition-colors">
-                  <td className="px-4 py-3 font-bold">{returnItem.id}</td>
-                  <td className="px-4 py-3">{returnItem.order}</td>
-                  <td className="px-4 py-3">{returnItem.product}</td>
-                  <td className="px-4 py-3">
-                    {returnItem.reason}
-                    {returnItem.inspectionNote && (
-                      <p className="mt-1 max-w-[220px] truncate text-xs text-[#92a9ad]" title={returnItem.inspectionNote}>
-                        Ghi chú: {returnItem.inspectionNote}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[returnItem.status]}`}>
-                      {returnItem.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {returnItem.status === 'Chờ tiếp nhận' && (
-                      <button
-                        type="button"
-                        onClick={() => openInspection(returnItem)}
-                        className="whitespace-nowrap rounded-lg bg-[#0f9d8a] px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[#0b7a6c]"
-                      >
-                        Kiểm tra
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <button type="button" className="text-sm text-[#0f9d8a] disabled:opacity-50" onClick={loadReturns} disabled={loading}>Tải lại</button>
       </div>
 
-      {selectedReturn && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeInspection();
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="return-inspection-title"
-            className="w-full max-w-md rounded-xl border border-[#24383b] bg-[#152427] p-5 shadow-2xl"
-          >
-            <h2 id="return-inspection-title" className="text-base font-bold">
-              Kiểm tra hàng trả {selectedReturn.id}
-            </h2>
-            <p className="mt-1 text-xs text-[#92a9ad]">
-              {selectedReturn.product} · Lý do: {selectedReturn.reason}
-            </p>
+      {error && <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
 
-            <form onSubmit={handleInspectionSubmit} className="mt-4 space-y-3">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-[#c5d2d2]">Kết quả kiểm tra</span>
-                <select
-                  value={inspectionResult}
-                  onChange={(event) => setInspectionResult(event.target.value)}
-                  className="w-full rounded-lg border border-[#24383b] bg-[#0e1a1c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#0f9d8a]"
-                >
-                  <option value="accepted">Đạt – nhập lại kho</option>
-                  <option value="rejected">Không đạt – từ chối</option>
-                </select>
-              </label>
+      <div className="overflow-x-auto rounded-xl border border-[#24383b] bg-[#152427]">
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead><tr className="border-b border-[#24383b] text-xs text-[#92a9ad]"><th className="p-3">Mã trả</th><th className="p-3">Đơn gốc</th><th className="p-3">Sản phẩm</th><th className="p-3">Lý do</th><th className="p-3">Trạng thái</th><th className="p-3 text-right" /></tr></thead>
+          <tbody>
+            {!loading && returns.map((item) => {
+              const status = statusFor(item);
+              return <tr key={item.id} className="border-b border-[#24383b] last:border-0">
+                <td className="p-3 font-semibold">{formatReturnCode(item.id)}</td>
+                <td className="p-3">{formatOrderCode(item.order_number)}</td>
+                <td className="p-3">{item.product_summary || '—'}</td>
+                <td className="p-3">{item.reason}</td>
+                <td className="p-3"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${status.style}`}>{status.label}</span></td>
+                <td className="p-3 text-right">{item.status === 'requested' && <button type="button" className="rounded-lg bg-[#489f91] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#0f9d8a]" onClick={() => openInspection(item)}>Kiểm tra</button>}</td>
+              </tr>;
+            })}
+            {!loading && returns.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-[#92a9ad]">Chưa có yêu cầu trả hàng từ khách.</td></tr>}
+            {loading && <tr><td colSpan="6" className="p-8 text-center text-[#92a9ad]">Đang tải yêu cầu trả hàng…</td></tr>}
+          </tbody>
+        </table>
+      </div>
 
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-[#c5d2d2]">Ghi chú</span>
-                <textarea
-                  rows="3"
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  placeholder="Tình trạng sản phẩm, tem mác..."
-                  className="w-full resize-y rounded-lg border border-[#24383b] bg-[#0e1a1c] px-3 py-2.5 text-sm text-white outline-none placeholder:text-[#647779] focus:border-[#0f9d8a]"
-                />
-              </label>
-
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={closeInspection}
-                  className="rounded-lg border border-[#24383b] px-4 py-2 text-xs font-bold text-[#c5d2d2] transition-colors hover:bg-[#24383b]"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-[#0f9d8a] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0b7a6c]"
-                >
-                  Xác nhận kiểm tra
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
-    </>
+      {selected && <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4">
+        <form onSubmit={inspect} className="my-auto w-full max-w-md space-y-3 rounded-xl border border-[#24383b] bg-[#152427] p-4">
+          <h2 className="font-bold">Kiểm tra hàng trả {formatReturnCode(selected.id)}</h2>
+          <p className="text-xs text-[#92a9ad]">{selected.items?.map((item) => `${item.product_name_snapshot} (${item.color_snapshot}/${item.size_snapshot})`).join(', ')} · Lý do: {selected.reason}</p>
+          <label className="block text-xs text-[#92a9ad]">Kết quả<select className={`${inputClass} mt-1`} value={outcome} onChange={(event) => setOutcome(event.target.value)}><option value="accepted">Đạt – nhập lại kho</option><option value="rejected">Không đạt – từ chối</option></select></label>
+          <label className="block text-xs text-[#92a9ad]">Ghi chú<textarea className={`${inputClass} mt-1`} rows="3" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Tình trạng sản phẩm, tem mác…" required /></label>
+          <div className="flex justify-end gap-2"><button type="button" className="rounded-lg border border-[#24383b] px-4 py-2" onClick={() => setSelected(null)}>Hủy</button><button type="submit" disabled={saving} className="rounded-lg bg-[#489f91] px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{saving ? 'Đang lưu…' : 'Xác nhận kiểm tra'}</button></div>
+        </form>
+      </div>}
+    </div>
   );
 };
 

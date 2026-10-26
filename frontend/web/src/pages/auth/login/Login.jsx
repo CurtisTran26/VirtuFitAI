@@ -1,23 +1,37 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../../../utils/apiClient';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (email === 'admin@virtufit.vn' && password.length >= 6) {
-      localStorage.setItem('userRole', 'admin');
-      navigate('/admin');
-    } else if (email === 'kho@virtufit.vn' && password.length >= 6) {
-      localStorage.setItem('userRole', 'warehouse');
-      navigate('/warehouse');
-    } else {
-      setError('Tài khoản không tồn tại hoặc sai mật khẩu!');
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const result = await apiClient.post('auth/staff-login', { account: account.trim(), password });
+      const destinations = { admin: '/admin', warehouse_staff: '/warehouse' };
+      const destination = destinations[result.user?.role];
+
+      if (!destination || !result.access_token) {
+        throw new Error('Tài khoản này chưa được cấp quyền truy cập web.');
+      }
+
+      localStorage.setItem('accessToken', result.access_token);
+      localStorage.setItem('userRole', result.user.role);
+      localStorage.setItem('userName', result.user.full_name || '');
+      navigate(destination);
+    } catch (loginError) {
+      setError(loginError.message || 'Không thể đăng nhập. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -66,14 +80,14 @@ const Login = () => {
 
             <form onSubmit={handleLogin} className="flex flex-col gap-5">
               <div>
-                <label htmlFor="login-email" className="mb-2 block text-xs font-semibold text-[#d6dbea]">Email đăng nhập</label>
+                <label htmlFor="login-account" className="mb-2 block text-xs font-semibold text-[#d6dbea]">Tài khoản</label>
                 <input
-                  id="login-email"
-                  type="email"
+                  id="login-account"
+                  type="text"
                   autoComplete="username"
-                  value={email}
-                  onChange={(event) => { setEmail(event.target.value); setError(''); }}
-                  placeholder="name@virtufit.vn"
+                  value={account}
+                  onChange={(event) => { setAccount(event.target.value); setError(''); }}
+                  placeholder="Nhập tài khoản"
                   className="w-full rounded-lg border border-[#394356] bg-[#101621] px-4 py-3.5 text-sm text-white outline-none transition-colors placeholder:text-[#657087] hover:border-[#56617a] focus:border-[#7568ff] focus:ring-2 focus:ring-[#5b4bff]/20"
                   required
                 />
@@ -112,21 +126,13 @@ const Login = () => {
 
               <button
                 type="submit"
-                className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-[#5b4bff] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#5b4bff]/20 transition-colors hover:bg-[#6b5eff] focus:outline-none focus:ring-2 focus:ring-[#8e85ff] focus:ring-offset-2 focus:ring-offset-[#151b28]"
+                disabled={isSubmitting}
+                className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-[#5b4bff] px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#5b4bff]/20 transition-colors hover:bg-[#6b5eff] focus:outline-none focus:ring-2 focus:ring-[#8e85ff] focus:ring-offset-2 focus:ring-offset-[#151b28] disabled:cursor-wait disabled:opacity-60"
               >
-                Đăng nhập hệ thống
+                {isSubmitting ? 'Đang đăng nhập…' : 'Đăng nhập hệ thống'}
                 <span aria-hidden="true">→</span>
               </button>
             </form>
-
-            <div className="mt-8 border-t border-[#2b3344] pt-5">
-              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#778196]">Tài khoản demo</p>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => { setEmail('admin@virtufit.vn'); setPassword('123456'); setError(''); }} className="rounded-md border border-[#394356] px-3 py-2 text-xs font-semibold text-[#c5ccda] transition-colors hover:border-[#7568ff] hover:text-white">Admin</button>
-                <button type="button" onClick={() => { setEmail('kho@virtufit.vn'); setPassword('123456'); setError(''); }} className="rounded-md border border-[#394356] px-3 py-2 text-xs font-semibold text-[#c5ccda] transition-colors hover:border-[#0fbd8e] hover:text-white">Kho</button>
-                <span className="self-center text-xs text-[#778196]">Mật khẩu demo: 123456</span>
-              </div>
-            </div>
           </div>
         </section>
       </div>

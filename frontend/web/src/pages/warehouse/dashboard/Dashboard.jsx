@@ -5,26 +5,22 @@ import { useNavigate } from 'react-router-dom';
 import Products from '../products/Products';
 import Catalog from '../categories/Catalog';
 import StockAdjustments from '../stock-adjustments/StockAdjustments';
+import StockHistory from '../stock-adjustments/StockHistory';
 import QRCodes from '../qr-codes/QRCodes';
 import Returns from '../returns/Returns';
 import Orders from '../orders/Orders';
 import CustomOrders from '../custom-orders/CustomOrders';
 import Notifications from './Notifications';
+import apiClient from '../../../utils/apiClient';
 
 // ==========================================
 // MOCK DATA CHO CÁC TAB CHƯA TÁCH MODULE
 // ==========================================
-const mockStockHistory = [
-  { id: 1, date: '30/09 09:12', product: 'Áo sơ mi linen (Trắng/L)', type: 'Xuất', quantity: -2, reason: 'Hàng lỗi / hư hỏng', user: 'kho@virtufit.vn' },
-  { id: 2, date: '29/09 16:40', product: 'Đầm midi hoa (Đỏ đô/M)', type: 'Nhập', quantity: 20, reason: 'Nhập hàng mới', user: 'kho@virtufit.vn' },
-  { id: 3, date: '29/09 10:05', product: 'Quần jeans slim (Xanh navy/L)', type: 'Nhập', quantity: 5, reason: 'Hàng trả nhập lại kho', user: 'kho@virtufit.vn' },
-];
-
 const WarehouseDashboard = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('orders'); // Tab mặc định khi vào
+  const [activeTab, setActiveTab] = useState('products'); // Mở danh sách sản phẩm sau khi đăng nhập
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(3);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   
   // Trạng thái Quản lý Modal Đăng Xuất
   const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
@@ -36,8 +32,10 @@ const WarehouseDashboard = () => {
 
   // Xử lý Đồng ý Đăng xuất
   const handleConfirmLogout = () => {
+    apiClient.post('auth/logout', {}).catch(() => {});
     localStorage.removeItem('userRole');
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('userName');
     navigate('/login');
   };
 
@@ -73,7 +71,7 @@ const WarehouseDashboard = () => {
         
         <div className="text-[11px] font-bold text-[#92a9ad] uppercase tracking-wider px-2 pt-4 pb-1">Sản phẩm</div>
         <NavItem id="products" icon="👕" label="Danh sách sản phẩm" />
-        <NavItem id="catalog" icon="🏷️" label="Danh mục · Màu · Size" />
+        <NavItem id="catalog" icon="🏷️" label="Danh mục & bảng size" />
         <NavItem id="qr" icon="🔳" label="Mã QR sản phẩm" />
         
         <div className="text-[11px] font-bold text-[#92a9ad] uppercase tracking-wider px-2 pt-4 pb-1">Kho</div>
@@ -103,10 +101,10 @@ const WarehouseDashboard = () => {
           <button className="md:hidden text-[#92a9ad] px-2 text-xl" onClick={() => setSidebarOpen(true)}>☰</button>
           <h2 className="text-lg font-bold">
             {activeTab === 'products' && 'Danh sách sản phẩm'}
-            {activeTab === 'catalog' && 'Danh mục, màu, size & bảng size'}
+            {activeTab === 'catalog' && 'Danh mục & bảng size'}
             {activeTab === 'qr' && 'Tạo & tải mã QR sản phẩm'}
-            {activeTab === 'stock' && 'Danh sách tồn kho'}
-            {activeTab === 'hist' && 'Lịch sử điều chỉnh tồn kho'}
+            {activeTab === 'stock' && 'Tồn kho'}
+            {activeTab === 'hist' && 'Lịch sử điều chỉnh tồn'}
             {activeTab === 'returns' && 'Tiếp nhận & kiểm tra hàng trả'}
             {activeTab === 'orders' && 'Đơn cần chuẩn bị'}
             {activeTab === 'custom' && 'Đơn thiết kế riêng'}
@@ -132,49 +130,13 @@ const WarehouseDashboard = () => {
           {activeTab === 'catalog' && <Catalog />}
           {activeTab === 'qr' && <QRCodes />}
           {activeTab === 'stock' && <StockAdjustments />}
+          {activeTab === 'hist' && <StockHistory />}
 
           {activeTab === 'returns' && <Returns />}
 
           {activeTab === 'orders' && <Orders />}
 
           {activeTab === 'custom' && <CustomOrders />}
-
-          {/* TAB: LỊCH SỬ ĐIỀU CHỈNH TỒN KHO */}
-          {activeTab === 'hist' && (
-            <div className="space-y-4">
-              <h1 className="text-lg font-bold">Lịch sử điều chỉnh tồn kho</h1>
-              <div className="bg-[#152427] border border-[#24383b] rounded-xl overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left">
-                  <thead>
-                    <tr className="border-b border-[#24383b] text-[#92a9ad] text-xs">
-                      <th className="px-4 py-3 font-semibold">Thời gian</th>
-                      <th className="px-4 py-3 font-semibold">Sản phẩm</th>
-                      <th className="px-4 py-3 font-semibold">Loại</th>
-                      <th className="px-4 py-3 font-semibold">Số lượng</th>
-                      <th className="px-4 py-3 font-semibold">Lý do</th>
-                      <th className="px-4 py-3 font-semibold">Người thực hiện</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {mockStockHistory.map((entry) => (
-                      <tr key={entry.id} className="border-b border-[#24383b] last:border-0 hover:bg-[#12383a]/30 transition-colors">
-                        <td className="px-4 py-3 text-[#c5d2d2] whitespace-nowrap">{entry.date}</td>
-                        <td className="px-4 py-3">{entry.product}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${entry.type === 'Nhập' ? 'bg-[#0f2e24] text-[#12a66a]' : 'bg-[#3a2e12] text-[#e8930c]'}`}>
-                            {entry.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-bold tabular-nums">{entry.quantity > 0 ? `+${entry.quantity}` : entry.quantity}</td>
-                        <td className="px-4 py-3">{entry.reason}</td>
-                        <td className="px-4 py-3 text-[#c5d2d2]">{entry.user}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           <Notifications isHidden={activeTab !== 'notif'} onUnreadCountChange={setUnreadNotificationCount} />
         </div>

@@ -1,3 +1,3 @@
-from .products import ProductIn, SizeChartIn, VariantIn
+from .products import ColorOptionIn, ProductIn, SizeChartIn, SizeOptionIn, VariantIn
 
-__all__ = ["ProductIn", "SizeChartIn", "VariantIn"]
+__all__ = ["ColorOptionIn", "ProductIn", "SizeChartIn", "SizeOptionIn", "VariantIn"]

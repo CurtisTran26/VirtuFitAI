@@ -24,3 +24,12 @@ class VariantIn(BaseModel):
     size: str = Field(min_length=1, max_length=30)
     color: str = ""
     sku: str = Field(min_length=1, max_length=80)
+
+
+class ColorOptionIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    hex_color: str = Field(pattern=r"^#[0-9A-Fa-f]{6}$")
+
+
+class SizeOptionIn(BaseModel):
+    name: str = Field(min_length=1, max_length=30)

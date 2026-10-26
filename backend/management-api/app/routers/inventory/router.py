@@ -3,6 +3,19 @@ from app.schemas.inventory import AdjustIn
 
 router = APIRouter()
 
+@router.get(f"{v1}/inventory/adjustments")
+def all_inventory_history(page:int=Query(1,ge=1),limit:int=Query(20,ge=1,le=100),user=Warehouse,db:Session=Depends(get_db)):
+    rows=db.execute(text("""SELECT ia.id,ia.variant_id,p.name product_name,v.sku,v.size,v.color,
+                          ia.delta,ia.quantity_before,ia.quantity_after,ia.reason,ia.created_at,
+                          u.full_name changed_by_name,u.phone changed_by_account
+                          FROM inventory_adjustments ia
+                          JOIN product_variants v ON v.id=ia.variant_id
+                          JOIN products p ON p.id=v.product_id
+                          LEFT JOIN users u ON u.id=ia.changed_by
+                          ORDER BY ia.created_at DESC LIMIT :l OFFSET :o"""),{"l":limit,"o":(page-1)*limit}).mappings().all()
+    total=db.execute(text("SELECT count(*) FROM inventory_adjustments")).scalar_one()
+    return {"items":[dict(row) for row in rows],"page":page,"limit":limit,"total":total}
+
 @router.post(f"{v1}/inventory/variants/{{variant_id}}/adjustments",status_code=201)
 def adjust_stock(variant_id:UUID,body:AdjustIn,user=Warehouse,db:Session=Depends(get_db)):
     try:

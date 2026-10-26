@@ -47,7 +47,8 @@ def list_orders(
         db.commit()
     rows = db.execute(
         text("""SELECT o.id,o.order_number,o.customer_id,u.full_name AS customer_name,o.order_type,o.status,
-                      o.payment_method,o.payment_status,o.total_vnd,o.created_at,o.updated_at
+                      o.payment_method,o.payment_status,o.total_vnd,o.created_at,o.updated_at,
+                      COALESCE((SELECT sum(oi.quantity) FROM order_items oi WHERE oi.order_id=o.id),0) AS item_count
                FROM orders o LEFT JOIN users u ON u.id=o.customer_id
                WHERE (CAST(:status AS text) IS NULL OR o.status=:status)
                  AND (CAST(:type AS text) IS NULL OR o.order_type=:type)

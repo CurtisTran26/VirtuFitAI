@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Import 2 module đã tách
 import CustomerAccounts from '../customer-accounts/CustomerAccounts';
@@ -8,32 +8,39 @@ import Overview from './Overview';
 import RevenueReports from '../revenue-reports/RevenueReports';
 import InteractionReports from '../interaction-reports/InteractionReports';
 import Notifications from './Notifications';
+import apiClient from '../../../utils/apiClient';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'overview';
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState('overview');
   
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(3);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   
   // State quản lý Modal Đăng xuất
   const [isLogoutModalOpen, setLogoutModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (location.search) navigate('/admin', { replace: true });
+  }, [location.search, navigate]);
 
   const handleLogoutClick = () => {
     setLogoutModalOpen(true);
   };
 
   const handleConfirmLogout = () => {
+    apiClient.post('auth/logout', {}).catch(() => {});
     localStorage.removeItem('userRole');
     localStorage.removeItem('accessToken'); 
+    localStorage.removeItem('userName');
     navigate('/login');
   };
 
   const NavItem = ({ id, icon, label, badge }) => (
     <button
       onClick={() => { 
-        setSearchParams({ tab: id }); 
+        setActiveTab(id);
         setSidebarOpen(false); 
       }}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-colors ${
@@ -75,7 +82,7 @@ const AdminDashboard = () => {
         <div className="flex-1"></div>
         {/* Nút bấm GỌI MODAL ĐĂNG XUẤT */}
         <button onClick={handleLogoutClick} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm text-[#9aa2c0] hover:bg-[#0f1220] hover:text-[#eef0f8] transition-colors">
-          <span>↩</span> Đăng xuất
+          <span>⏻</span> Đăng xuất
         </button>
       </aside>
 
@@ -91,7 +98,7 @@ const AdminDashboard = () => {
             {activeTab === 'notif' && 'Thông báo'}
           </h2>
           <div className="flex-1"></div>
-          <button type="button" onClick={() => setSearchParams({ tab: 'notif' })} aria-label="Mở thông báo" title="Thông báo" className="text-[#9aa2c0] hover:text-white transition-colors text-lg">🔔</button>
+          <button type="button" onClick={() => setActiveTab('notif')} aria-label="Mở thông báo" title="Thông báo" className="text-[#9aa2c0] hover:text-white transition-colors text-lg">🔔</button>
           <div className="w-9 h-9 rounded-full bg-[#5b4bff] flex items-center justify-center font-bold text-sm shadow-md cursor-pointer text-white">AD</div>
         </header>
 

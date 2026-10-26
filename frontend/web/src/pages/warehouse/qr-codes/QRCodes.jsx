@@ -1,174 +1,84 @@
-import React, { useState, useRef } from 'react';
-
-const mockProducts = [
-  { id: 1, name: 'Áo sơ mi linen', sku: 'VF-AS-001' },
-  { id: 2, name: 'Đầm midi hoa', sku: 'VF-DM-014' },
-  { id: 3, name: 'Quần jeans slim', sku: 'VF-QJ-007' },
-  { id: 4, name: 'Áo khoác bomber', sku: 'VF-AK-003' },
-  { id: 5, name: 'Váy xếp ly', sku: 'VF-VX-009' }
-];
-
-// Hàm tạo mã SVG QR Code giả lập dựa trên thuật toán hash của SKU
-const generateQRCodeSVG = (seed) => {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const n = 21;
-  const rects = [];
-  
-  for (let y = 0; y < n; y++) {
-    for (let x = 0; x < n; x++) {
-      if ((x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12)) continue;
-      h = (h * 1103515245 + 12345) >>> 0;
-      if ((h >> 16) & 1) {
-        rects.push(<rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="#000" />);
-      }
-    }
-  }
-
-  const Finder = ({ x, y }) => (
-    <g>
-      <rect x={x} y={y} width="7" height="7" fill="#000" />
-      <rect x={x + 1} y={y + 1} width="5" height="5" fill="#fff" />
-      <rect x={x + 2} y={y + 2} width="3" height="3" fill="#000" />
-    </g>
-  );
-
-  return (
-    <svg viewBox="-1 -1 23 23" xmlns="http://www.w3.org/2000/svg" shapeRendering="crispEdges" className="w-[130px] h-[130px] bg-white p-1.5 rounded-lg border border-[#24383b]">
-      {rects}
-      <Finder x={0} y={0} />
-      <Finder x={14} y={0} />
-      <Finder x={0} y={14} />
-    </svg>
-  );
-};
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import apiClient from '../../../utils/apiClient';
 
 const QRCodes = () => {
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [generatedQRs, setGeneratedQRs] = useState([]);
-  const previewRef = useRef(null);
+  const [products, setProducts] = useState([]);
+  const [query, setQuery] = useState('');
+  const [busyId, setBusyId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [previewProduct, setPreviewProduct] = useState(null);
 
-  const toggleSelect = (id) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedIds(newSet);
-  };
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await apiClient.get('products?page=1&limit=100');
+      setProducts(result.items || []);
+    } catch (loadError) {
+      setError(loadError.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const handleSelectAll = () => {
-    if (selectedIds.size === mockProducts.length) {
-      setSelectedIds(new Set()); // Bỏ chọn tất cả nếu đang chọn full
-    } else {
-      setSelectedIds(new Set(mockProducts.map(p => p.id))); // Chọn tất cả
+  useEffect(() => { loadProducts(); }, [loadProducts]);
+
+  const generateQR = async (product) => {
+    setBusyId(product.id);
+    setError('');
+    try {
+      const qr = await apiClient.post(`admin/products/${product.id}/qr`, {});
+      setProducts((current) => current.map((item) => item.id === product.id ? { ...item, qr_data: qr.qr_data, qr_image_url: qr.qr_image_url } : item));
+    } catch (generateError) {
+      setError(generateError.message);
+    } finally {
+      setBusyId(null);
     }
   };
 
-  const handleGenerate = () => {
-    if (selectedIds.size === 0) {
-      alert('Vui lòng chọn ít nhất 1 sản phẩm!');
-      return;
-    }
-    const qrsToGenerate = mockProducts.filter(p => selectedIds.has(p.id));
-    setGeneratedQRs(qrsToGenerate);
-  };
-
-  const handleDownload = () => {
-    if (generatedQRs.length === 0) {
-      alert('Hãy tạo mã QR trước khi tải xuống!');
-      return;
-    }
-    
-    // Logic tải SVG (mô phỏng tải file gộp hoặc từng file)
-    const svgElements = previewRef.current.querySelectorAll('svg');
-    if (svgElements.length > 0) {
-      const svgData = new XMLSerializer().serializeToString(svgElements[0]);
-      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `QR-${generatedQRs[0].sku}.svg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
+  const visibleProducts = useMemo(() => products.filter((product) => `${product.name} ${product.sku} ${product.category_name}`.toLowerCase().includes(query.trim().toLowerCase())), [products, query]);
 
   return (
     <div className="space-y-4">
-      {/* Thanh công cụ */}
-      <div className="flex gap-3 justify-end items-center mb-4 flex-wrap">
-        <button 
-          onClick={handleSelectAll}
-          className="bg-[#152427] border border-[#24383b] text-[#92a9ad] px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#24383b] hover:text-white transition-colors"
-        >
-          {selectedIds.size === mockProducts.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-        </button>
-        <button 
-          onClick={handleGenerate}
-          className="bg-[#0f9d8a] text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-[#0b7a6c] shadow-lg transition-colors"
-        >
-          Tạo mã QR đã chọn
-        </button>
-        <button 
-          onClick={handleDownload}
-          className="bg-[#152427] border border-[#24383b] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#24383b] transition-colors"
-        >
-          ⬇ Tải xuống
-        </button>
+      <div className="rounded-xl border border-[#24383b] bg-[#152427] p-4">
+        <h1 className="font-bold">Mã QR sản phẩm</h1>
+        <p className="mt-1 text-sm text-[#92a9ad]">Tạo hoặc cấp mới mã QR cho sản phẩm. Mã QR lưu deep link theo UUID của sản phẩm hiện tại.</p>
       </div>
 
-      {/* Bảng chọn Sản phẩm */}
-      <div className="bg-[#152427] border border-[#24383b] rounded-2xl overflow-x-auto mb-4">
-        <table className="w-full text-left min-w-[500px]">
-          <thead>
-            <tr className="border-b border-[#24383b] text-[#92a9ad] text-xs">
-              <th className="p-4 w-12 text-center"></th>
-              <th className="p-4 font-semibold">Sản phẩm</th>
-              <th className="p-4 font-semibold">SKU</th>
-              <th className="p-4 font-semibold">Mã QR</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm">
-            {mockProducts.map((p) => (
-              <tr key={p.id} className="border-b border-[#24383b] last:border-0 hover:bg-[#12383a]/30 transition-colors">
-                <td className="p-4 text-center">
-                  <input 
-                    type="checkbox" 
-                    checked={selectedIds.has(p.id)}
-                    onChange={() => toggleSelect(p.id)}
-                    className="w-4 h-4 accent-[#0f9d8a] cursor-pointer"
-                  />
-                </td>
-                <td className="p-4 font-bold text-white">{p.name}</td>
-                <td className="p-4 text-[#92a9ad]">{p.sku}</td>
-                <td className="p-4">
-                  <span className="bg-[#17284a] text-[#3b82f6] px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">
-                    QR-{p.sku}
-                  </span>
-                </td>
-              </tr>
-            ))}
+      {error && <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <input className="w-full max-w-sm rounded-lg border border-[#24383b] bg-[#0e1a1c] px-3 py-2.5 text-sm text-white outline-none focus:border-[#0f9d8a]" placeholder="Tìm tên / SKU sản phẩm" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <button type="button" className="text-sm text-[#0f9d8a] disabled:opacity-50" onClick={loadProducts} disabled={loading}>Tải lại</button>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-[#24383b] bg-[#152427]">
+        <table className="w-full min-w-[820px] text-left text-sm">
+          <thead><tr className="border-b border-[#24383b] text-xs text-[#92a9ad]"><th className="p-3">Sản phẩm</th><th className="p-3">SKU</th><th className="p-3">Danh mục</th><th className="p-3">Mã QR</th><th className="p-3 text-right">Thao tác</th></tr></thead>
+          <tbody>
+            {!loading && visibleProducts.map((product) => <tr key={product.id} className="border-b border-[#24383b] last:border-0">
+              <td className="p-3 font-semibold">{product.name}</td>
+              <td className="p-3">{product.sku}</td>
+              <td className="p-3">{product.category_name}</td>
+              <td className="p-3">{product.qr_image_url ? <div className="flex items-center gap-3"><button type="button" onClick={() => setPreviewProduct(product)} title="Xem mã QR cỡ lớn" className="rounded-lg bg-white p-1"><img src={product.qr_image_url} alt={`QR ${product.name}`} className="h-24 w-24 rounded object-contain" /></button><a href={product.qr_image_url} download={`QR-${product.sku}.png`} target="_blank" rel="noreferrer" className="text-sm font-semibold text-[#48c6b2]">Tải ảnh QR</a></div> : <span className="text-sm text-[#92a9ad]">Chưa tạo</span>}</td>
+              <td className="p-3 text-right"><button type="button" disabled={!product.is_active || busyId === product.id} onClick={() => generateQR(product)} className="rounded-lg bg-[#0f9d8a] px-3 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{busyId === product.id ? 'Đang tạo…' : product.qr_image_url ? 'Cấp mới mã QR' : 'Tạo mã QR'}</button></td>
+            </tr>)}
+            {!loading && visibleProducts.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-[#92a9ad]">{products.length ? 'Không tìm thấy sản phẩm.' : 'Chưa có sản phẩm trong backend.'}</td></tr>}
+            {loading && <tr><td colSpan="5" className="p-8 text-center text-[#92a9ad]">Đang tải sản phẩm…</td></tr>}
           </tbody>
         </table>
       </div>
 
-      {/* Khu vực Xem trước QR Code */}
-      <div className="bg-[#152427] border border-[#24383b] rounded-2xl p-6">
-        <h3 className="text-lg font-bold mb-4">Xem trước</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4" ref={previewRef}>
-          {generatedQRs.length === 0 ? (
-            <p className="text-[#92a9ad] col-span-full">Chọn sản phẩm ở trên rồi bấm “Tạo mã QR”.</p>
-          ) : (
-            generatedQRs.map((p) => (
-              <div key={p.id} className="flex flex-col items-center justify-center p-4 border border-[#24383b] rounded-xl text-center bg-[#0e1a1c]">
-                {generateQRCodeSVG(p.sku)}
-                <p className="mt-3 font-bold text-sm text-white">{p.name}</p>
-                <p className="text-xs text-[#92a9ad] mt-1">{p.sku}</p>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      {previewProduct && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewProduct(null); }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="qr-preview-title" className="w-full max-w-md rounded-2xl border border-[#24383b] bg-[#152427] p-5 text-center shadow-2xl">
+          <h2 id="qr-preview-title" className="font-bold">Mã QR · {previewProduct.name}</h2>
+          <p className="mt-1 text-sm text-[#92a9ad]">SKU: {previewProduct.sku}</p>
+          <img src={previewProduct.qr_image_url} alt={`Mã QR sản phẩm ${previewProduct.name}`} className="mx-auto mt-4 h-80 w-80 max-w-full rounded-xl bg-white p-3 object-contain" />
+          <p className="mt-3 break-all rounded-lg bg-[#0e1a1c] p-3 text-xs text-[#92a9ad]">{previewProduct.qr_data}</p>
+          <div className="mt-4 flex justify-center gap-2"><button type="button" className="rounded-lg border border-[#24383b] px-4 py-2 text-sm" onClick={() => setPreviewProduct(null)}>Đóng</button><a href={previewProduct.qr_image_url} download={`QR-${previewProduct.sku}.png`} target="_blank" rel="noreferrer" className="rounded-lg bg-[#0f9d8a] px-4 py-2 text-sm font-bold text-white">Tải ảnh QR</a></div>
+        </section>
+      </div>}
     </div>
   );
 };
