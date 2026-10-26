@@ -1,6 +1,10 @@
 # VirtuFit AI — cấu trúc đầy đủ
 
-Chỉ có thư mục và tài liệu hướng dẫn. Chưa có code, package.json hoặc server để chạy.
+## Chạy thử Web Admin/Warehouse
+
+Hướng dẫn chạy code Web hiện tại trên Windows: [docs/quick-start-web.md](docs/quick-start-web.md). Hướng dẫn này dành cho nhánh `frontend/loc-sprint1-web-updates`.
+
+Repo hiện đã có frontend, backend và cấu hình chạy local. Các ghi chú scaffold/kế hoạch bên dưới được viết trước khi triển khai, nên không phản ánh trạng thái code mới nhất; xem hướng dẫn chạy Web ở trên.
 Tên thư mục chức năng là nhóm công việc, không phải microservice riêng. Có thể gộp file khi triển khai để code đơn giản.
 
 ## Phạm vi
@@ -43,7 +47,7 @@ Xem STRUCTURE.md để xem toàn bộ cây thư mục.
 # HƯỚNG DẪN CHUNG TRƯỚC KHI CODE
 
 Cập nhật: 29/09/2026. Đây là đầu mối thống nhất của nhóm. Quyết định mới phải được cập nhật vào README qua PR; không chỉ thông báo trong tin nhắn.
-**Trạng thái hiện tại: chỉ là cấu trúc thư mục. Clone được nhưng chưa chạy được.** Không có API, UI, database hoặc dịch vụ ngoài đã triển khai. Tài liệu mô tả kế hoạch, không phải tính năng đã hoàn thành.
+**Ghi chú lịch sử:** phần hướng dẫn chung dưới đây bắt đầu từ giai đoạn repo mới có cấu trúc thư mục. Hãy dùng tài liệu quick start và code/API hiện tại để chạy, không xem mô tả scaffold cũ là trạng thái hiện tại.
 
 ## 1. Đọc gì trước khi làm task?
 1. README này: phạm vi, kiến trúc, quy trình và các điểm ★ cần chốt.
