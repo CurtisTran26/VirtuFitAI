@@ -1,0 +1,276 @@
+openapi: 3.1.0
+info:
+  title: VirtuFit AI - Management API Contract
+  version: 1.0.0
+  description: |
+    API phục vụ hệ thống quản trị nội bộ VirtuFit AI dành cho 4 nhóm nhân sự:
+    1. Quản trị viên (Admin): Toàn quyền cấu hình, nhân sự, catalog và báo cáo.
+    2. Nhân viên bán hàng (Sales Staff): Tạo đơn tại quầy (POS), thu tiền mặt, in hóa đơn, tư vấn khách.
+    3. Nhân viên kho (Warehouse Staff): Quản lý tồn kho chi tiết từng size, cập nhật số lượng nhập kho, đóng gói và giao vận.
+    4. Nhà thiết kế (Designer): Tiếp nhận yêu cầu thiết kế riêng, gọi AI sinh mẫu concept, trao đổi revision và báo giá cho khách.
+servers:
+  - url: http://localhost:8001
+    description: Development Server (Management API)
+  - url: https://admin-api.virtufit.ai
+    description: Production Management API
+
+paths:
+  # ============================================================================
+  # 1. STAFF AUTHENTICATION
+  # ============================================================================
+  /api/v1/staff/auth/login:
+    post:
+      summary: Đăng nhập dành cho nhân viên nội bộ (Admin, Sales, Warehouse, Designer)
+      tags: [Staff Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: "sales@virtufit.ai" }
+                password: { type: string, example: "password123" }
+      responses:
+        '200':
+          description: Đăng nhập thành công, trả về JWT Token và quyền hạn vai trò
+        '403':
+          description: Tài khoản không có quyền truy cập hệ thống quản trị
+
+  /api/v1/staff/auth/me:
+    get:
+      summary: Lấy thông tin tài khoản nhân viên hiện tại
+      tags: [Staff Auth]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Thông tin nhân sự và vai trò
+
+  # ============================================================================
+  # 2. BÁN HÀNG TẠI QUẦY (POS / COUNTER ORDERS - Sales Staff)
+  # ============================================================================
+  /api/v1/pos/orders:
+    post:
+      summary: Sales Staff tạo đơn hàng tại quầy (hỗ trợ khách vãng lai hoặc chọn user đã có)
+      tags: [POS Counter Orders]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, payment_method]
+              properties:
+                customer_id: { type: integer, nullable: true, description: "NULL nếu là khách vãng lai" }
+                payment_method: { type: string, enum: [cash, vnpay, banking] }
+                cash_received: { type: number, description: "Tiền mặt khách đưa (nếu trả tiền mặt)" }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [product_id, size_id, quantity]
+                    properties:
+                      product_id: { type: integer }
+                      size_id: { type: integer }
+                      quantity: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Tạo đơn tại quầy thành công, tự động tính tiền thối (cash_change) và trừ kho
+
+  # ============================================================================
+  # 3. QUẢN LÝ KHO & TỒN KHO THEO SIZE (Warehouse Staff)
+  # ============================================================================
+  /api/v1/warehouse/inventory:
+    get:
+      summary: Danh sách tồn kho theo từng sản phẩm và từng size
+      tags: [Warehouse & Inventory]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: low_stock_threshold
+          in: query
+          schema: { type: integer, default: 5 }
+          description: Lọc các mặt hàng có số lượng tồn ít hơn ngưỡng
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Báo cáo tồn kho
+
+  /api/v1/warehouse/inventory/{size_id}/adjust:
+    patch:
+      summary: Cập nhật số lượng tồn kho (Nhập hàng hoặc điều chỉnh kho)
+      tags: [Warehouse & Inventory]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: size_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity_delta, reason]
+              properties:
+                quantity_delta: { type: integer, example: 50, description: "Số lượng thêm (+50) hoặc bớt (-5)" }
+                reason: { type: string, example: "Nhập lô hàng may mới đợt tháng 10" }
+      responses:
+        '200':
+          description: Cập nhật tồn kho thành công
+
+  # ============================================================================
+  # 4. STUDIO THIẾT KẾ RIÊNG (Designer Studio)
+  # ============================================================================
+  /api/v1/designer/requests:
+    get:
+      summary: Danh sách yêu cầu thiết kế riêng cần xử lý
+      tags: [Designer Studio]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Danh sách yêu cầu may đo
+
+  /api/v1/designer/requests/{request_id}/generate-concept:
+    post:
+      summary: Kích hoạt AI tạo ảnh concept thiết kế từ prompt và brief của khách
+      tags: [Designer Studio]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt: { type: string, example: "Modern Vietnamese Ao Dai, dark navy silk with silver crane embroidery" }
+                model: { type: string, default: "sdxl-fashion" }
+      responses:
+        '200':
+          description: Đã tạo xong concept và lưu vào bucket private
+
+  /api/v1/designer/requests/{request_id}/quote:
+    post:
+      summary: Designer gửi báo giá và số ngày dự kiến hoàn thiện cho khách hàng
+      tags: [Designer Studio]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quoted_price, estimated_days]
+              properties:
+                quoted_price: { type: number, example: 2200000 }
+                estimated_days: { type: integer, example: 7 }
+                designer_note: { type: string, example: "Vải lụa cao cấp, thêu tay thủ công sắc sảo" }
+      responses:
+        '200':
+          description: Báo giá đã được gửi, chuyển trạng thái sang QUOTED và bắn thông báo cho khách
+
+  # ============================================================================
+  # 5. QUẢN TRỊ CATALOG & SẢN PHẨM (Admin & Sales)
+  # ============================================================================
+  /api/v1/admin/products:
+    post:
+      summary: Tạo mới sản phẩm kèm danh sách size và upload ảnh
+      tags: [Admin Catalog]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, category_id, price, sizes]
+              properties:
+                name: { type: string }
+                category_id: { type: integer }
+                description: { type: string }
+                price: { type: number }
+                discount_price: { type: number }
+                color: { type: string }
+                sizes:
+                  type: array
+                  items:
+                    type: object
+                    required: [size_label, stock_quantity]
+                    properties:
+                      size_label: { type: string }
+                      stock_quantity: { type: integer }
+                      chest_cm: { type: number }
+                      waist_cm: { type: number }
+                      length_cm: { type: number }
+      responses:
+        '201':
+          description: Tạo sản phẩm thành công
+
+  /api/v1/admin/products/{product_id}/qr:
+    post:
+      summary: Tạo hoặc cấp mới mã QR cho sản phẩm
+      tags: [Admin Catalog]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Sinh/làm mới mã QR, trả về qr_data và qr_image_url
+
+  # ============================================================================
+  # 6. BÁO CÁO DOANH THU & PHÂN TÍCH (Admin Analytics)
+  # ============================================================================
+  /api/v1/admin/analytics/overview:
+    get:
+      summary: Tổng quan doanh thu, số đơn hàng, tỷ lệ thử đồ AI và chuyển đổi
+      tags: [Admin Analytics]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: start_date
+          in: query
+          schema: { type: string, format: date }
+        - name: end_date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Dữ liệu phân tích tổng quan
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

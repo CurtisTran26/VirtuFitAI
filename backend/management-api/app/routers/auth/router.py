@@ -1,11 +1,13 @@
 from app.routers.common import *
+from app.schemas.auth import Login
+from app.schemas.management import ChangePassword, PasswordResetOtp, PasswordReset
 
 router = APIRouter()
 
 @router.post(f"{v1}/auth/staff-login")
 def staff_login(body:Login,db:Session=Depends(get_db)):
-    row=db.execute(text("SELECT u.id,u.phone,u.full_name,u.password_hash,u.is_active,r.name role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.phone=:p"),{"p":body.phone}).mappings().first()
-    if not row or not row["is_active"] or row["role"]=="customer" or not verify_password(body.password,row["password_hash"]):
+    row=db.execute(text("SELECT u.id,u.phone,u.full_name,u.password_hash,u.is_active,r.name role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.phone=:p"),{"p":body.account}).mappings().first()
+    if not row or not row["is_active"] or row["role"]=="customer" or not row["password_hash"] or len(body.password.encode("utf-8")) > 72 or not verify_password(body.password,row["password_hash"]):
         raise HTTPException(401,detail={"code":"INVALID_CREDENTIALS","message":"Staff credentials are incorrect"})
     result=issue_session(db,row["id"]); db.commit()
     return {"user":{"id":str(row["id"]),"phone":row["phone"],"full_name":row["full_name"],"role":row["role"]},**result}

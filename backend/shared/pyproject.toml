@@ -9,4 +9,4 @@ requires-python = ">=3.11"
 dependencies = ["fastapi==0.115.12", "SQLAlchemy==2.0.38", "psycopg[binary]==3.2.5", "passlib[bcrypt]==1.7.4"]
 
 [tool.setuptools]
-py-modules = ["shared_platform"]
+py-modules = ["shared_platform", "order_service"]

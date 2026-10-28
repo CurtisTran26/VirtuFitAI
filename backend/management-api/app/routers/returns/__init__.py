@@ -1,1 +1,1 @@
-"""Router package."""
+"""Warehouse return inspection endpoints."""

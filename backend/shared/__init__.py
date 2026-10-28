@@ -1,1 +1,1 @@
-"""Shared database and security code for the app and management APIs."""
+"""Shared database models and service helpers for VirtuFit APIs."""
