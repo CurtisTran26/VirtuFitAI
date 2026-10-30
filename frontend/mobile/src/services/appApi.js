@@ -4,7 +4,7 @@ let onExpired = null;
 export function setApiSession(token, expired) { sessionToken = token; onExpired = expired || null; }
 
 export async function api(path, { method = 'GET', body, token = sessionToken, anonymous = false } = {}) {
-  if (!API_URL.startsWith('https://') && !(typeof __DEV__ !== 'undefined' && __DEV__ && /^http:\/\/(10\.0\.2\.2|localhost|127\.0\.0\.1):\d+\/api\/v1$/.test(API_URL))) {
+  if (!API_URL.startsWith('https://') && !(typeof __DEV__ !== 'undefined' && __DEV__ && /^http:\/\/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost):\d+\/api\/v1$/.test(API_URL))) {
     throw new Error('API cần HTTPS; địa chỉ HTTP cục bộ chỉ dùng trong development build.');
   }
   const controller = new AbortController();

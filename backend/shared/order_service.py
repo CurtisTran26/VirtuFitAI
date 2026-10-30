@@ -62,7 +62,7 @@ def expire_stale_holds(db: Session, limit: int = 100) -> int:
             text("UPDATE orders SET status='expired',hold_expires_at=NULL,updated_at=now() WHERE id=:id"),
             {"id": order["id"]},
         )
-        _record_status(db, order["id"], None, "pending_confirmation", "expired", "Inventory hold expired")
+        _record_status(db, order["id"], None, "pending_confirmation", "expired", "Inventory hold expired after 15 minutes")
     return len(stale)
 
 

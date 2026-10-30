@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 
 from order_service import cancel_order, create_order, expire_stale_holds
 from shared_platform import get_db, require_roles
-from app.schemas.orders import OrderCreate
+from app.schemas.orders import OrderCreate, CodCollectResponse
+from app.services.orders.service import collect_cod_payment
 
-router = APIRouter(prefix="/orders", tags=["Orders"])
+router = APIRouter(prefix="/api/v1/orders", tags=["Orders"])
 
 
 def order_detail(db: Session, order_id: UUID, customer_id: UUID | None = None):
@@ -40,6 +41,8 @@ def place_order(
 ):
     if expire_stale_holds(db):
         db.commit()
+    # Nếu là COD: Duyệt xác nhận đơn ngay lập tức (status = 'confirmed', payment_status = 'unpaid')
+    confirm_immediately = (body.payment_method == "cod")
     order_id = create_order(
         db,
         customer_id=user["id"],
@@ -49,6 +52,7 @@ def place_order(
         lines=[item.model_dump() for item in body.items],
         address_snapshot=body.shipping_address.model_dump(exclude_none=True),
         idempotency_key=idempotency_key,
+        confirm_immediately=confirm_immediately,
     )
     db.commit()
     return order_detail(db, order_id, user["id"])
@@ -95,3 +99,18 @@ def cancel_customer_order(order_id: UUID, user=Depends(require_roles("customer")
     cancel_order(db, order_id, user["id"], note="Cancelled by customer")
     db.commit()
     return Response(status_code=204)
+
+
+@router.post("/{order_id}/cod-collect", response_model=CodCollectResponse)
+def cod_collect(
+    order_id: UUID,
+    user=Depends(require_roles("warehouse_staff", "sales_staff", "admin")),
+    db: Session = Depends(get_db),
+):
+    """Xác nhận đối soát thu tiền COD cho đơn hàng (warehouse_staff, sales_staff, admin)."""
+    return collect_cod_payment(
+        db,
+        order_id=order_id,
+        staff_id=user["id"],
+        staff_name=user.get("full_name", ""),
+    )
