@@ -240,6 +240,14 @@
   7. `test_07_clear_entire_cart`: Xóa sạch giỏ hàng -> Trả về `204 No Content`.
   8. `test_08_update_valid_quantity_success`: Cập nhật số lượng hợp lệ trong kho -> Trả về `200 OK`.
 
+#### 5. Danh sách files tạo mới & chỉnh sửa:
+- **Migration Database:** [`database/migrations/005_cart_items.sql`](file:///d:/CS83/VirtuFitAI/database/migrations/005_cart_items.sql)
+- **Pydantic Schemas:** [`backend/app-api/app/schemas/cart/cart.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/cart/cart.py), [`backend/app-api/app/schemas/cart/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/cart/__init__.py)
+- **Tầng Nghiệp vụ (Service):** [`backend/app-api/app/services/cart/service.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/cart/service.py), [`backend/app-api/app/services/cart/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/cart/__init__.py)
+- **Tầng Định tuyến (Router):** [`backend/app-api/app/routers/cart/router.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/cart/router.py), [`backend/app-api/app/routers/cart/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/cart/__init__.py)
+- **Tích hợp ứng dụng:** [`backend/app-api/app/main.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/main.py)
+- **Kiểm thử tự động:** [`backend/app-api/tests/unit/test_cart.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/tests/unit/test_cart.py)
+
 ### [Sprint 2 - Task 2] Tích hợp Cổng thanh toán VNPay Sandbox (Create URL, IPN Webhook & Return URL) — *Hoàn thành (30/10/2026)*
 
 #### 1. Cấu hình Cổng thanh toán (`app/services/payments/vnpay.py`)
@@ -288,6 +296,13 @@
   5. `test_05_ipn_idempotency_returns_02_and_no_double_deduction`: Gọi IPN 2 lần liên tiếp cho cùng 1 đơn -> Lần 2 trả `RspCode: "02" (Order already confirmed)`, kho không bị trừ 2 lần.
   6. `test_06_vnpay_return_endpoint`: Kiểm tra return URL xác thực chữ ký và tóm tắt giao dịch cho Frontend.
 
+#### 5. Danh sách files tạo mới & chỉnh sửa:
+- **Pydantic Schemas:** [`backend/app-api/app/schemas/payments/vnpay.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/payments/vnpay.py), [`backend/app-api/app/schemas/payments/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/payments/__init__.py)
+- **Tầng Nghiệp vụ (Service):** [`backend/app-api/app/services/payments/vnpay.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/payments/vnpay.py), [`backend/app-api/app/services/payments/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/payments/__init__.py)
+- **Tầng Định tuyến (Router):** [`backend/app-api/app/routers/payments/router.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/payments/router.py), [`backend/app-api/app/routers/payments/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/payments/__init__.py)
+- **Tích hợp ứng dụng:** [`backend/app-api/app/main.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/main.py)
+- **Kiểm thử tự động:** [`backend/app-api/tests/unit/test_vnpay.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/tests/unit/test_vnpay.py)
+
 ### [Sprint 2 - Task 3] API Bán hàng & Thanh toán tại quầy (Counter Order: Cash & VietQR Napas 247) — *Hoàn thành (30/10/2026)*
 
 #### 1. Phân quyền & Mô hình Đơn tại quầy
@@ -330,6 +345,13 @@
   5. `test_05_confirm_bank_transfer_success`: Xác nhận chuyển khoản thành công -> Đơn hoàn tất `completed`, phương thức `bank_transfer`, kho bị trừ.
   6. `test_06_customer_forbidden_from_sales_api`: Tài khoản `customer` cố tình gọi API sales -> Bị chặn đứng với `403 Forbidden`.
 
+#### 5. Danh sách files tạo mới & chỉnh sửa:
+- **Pydantic Schemas:** [`backend/app-api/app/schemas/sales/sales.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/sales/sales.py), [`backend/app-api/app/schemas/sales/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/sales/__init__.py)
+- **Tầng Nghiệp vụ (Service):** [`backend/app-api/app/services/sales/service.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/sales/service.py), [`backend/app-api/app/services/sales/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/sales/__init__.py)
+- **Tầng Định tuyến (Router):** [`backend/app-api/app/routers/sales/router.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/sales/router.py), [`backend/app-api/app/routers/sales/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/sales/__init__.py)
+- **Tích hợp ứng dụng:** [`backend/app-api/app/main.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/main.py)
+- **Kiểm thử tự động:** [`backend/app-api/tests/unit/test_sales.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/tests/unit/test_sales.py)
+
 ### [Sprint 2 - Task 4] API Đơn hàng COD & Xác nhận Đối soát Thu tiền (Cash on Delivery) — *Hoàn thành (30/10/2026)*
 
 #### 1. Quy tắc Nghiệp vụ Đơn hàng COD
@@ -356,6 +378,12 @@
   3. `test_03_cod_collect_when_completed_success`: Thu COD khi đơn đã giao (`completed`) -> Cập nhật thành công sang `paid`.
   4. `test_04_cod_collect_duplicate_fails_409`: Thu COD lần thứ 2 cho cùng 1 đơn -> Báo lỗi `409 Conflict (ORDER_ALREADY_PAID)`.
   5. `test_05_customer_forbidden_from_cod_collect`: Tài khoản `customer` gọi thu COD -> Bị chặn với `403 Forbidden`.
+
+#### 5. Danh sách files tạo mới & chỉnh sửa:
+- **Pydantic Schemas:** [`backend/app-api/app/schemas/orders/orders.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/orders/orders.py), [`backend/app-api/app/schemas/orders/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/orders/__init__.py)
+- **Tầng Nghiệp vụ (Service):** [`backend/app-api/app/services/orders/service.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/orders/service.py), [`backend/app-api/app/services/orders/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/orders/__init__.py)
+- **Tầng Định tuyến (Router):** [`backend/app-api/app/routers/orders/router.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/orders/router.py)
+- **Kiểm thử tự động:** [`backend/app-api/tests/unit/test_cod.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/tests/unit/test_cod.py)
 
 ### [Sprint 2 - Task 5] API Xử lý Đóng gói & Giao nhận (Fulfillment State Machine) — *Hoàn thành (30/10/2026)*
 
@@ -389,6 +417,13 @@
   3. `test_03_jump_state_fails_409_state_conflict`: Cố tình nhảy cóc trạng thái -> Báo lỗi `409 Conflict (ORDER_STATE_CONFLICT)`.
   4. `test_04_shipped_missing_tracking_code_fails_422`: Chuyển sang `shipped` nhưng thiếu mã vận đơn hoặc đơn vị vận chuyển -> Báo lỗi `422 Unprocessable Entity`.
   5. `test_05_customer_forbidden_from_warehouse_api`: Tài khoản `customer` cố tình truy cập API kho -> Bị chặn với `403 Forbidden`.
+
+#### 5. Danh sách files tạo mới & chỉnh sửa:
+- **Pydantic Schemas:** [`backend/app-api/app/schemas/warehouse/warehouse.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/warehouse/warehouse.py), [`backend/app-api/app/schemas/warehouse/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/warehouse/__init__.py)
+- **Tầng Nghiệp vụ (Service):** [`backend/app-api/app/services/warehouse/service.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/warehouse/service.py), [`backend/app-api/app/services/warehouse/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/warehouse/__init__.py)
+- **Tầng Định tuyến (Router):** [`backend/app-api/app/routers/warehouse/router.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/warehouse/router.py), [`backend/app-api/app/routers/warehouse/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/warehouse/__init__.py)
+- **Tích hợp ứng dụng:** [`backend/app-api/app/main.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/main.py)
+- **Kiểm thử tự động:** [`backend/app-api/tests/unit/test_warehouse.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/tests/unit/test_warehouse.py)
 
 ### [Sprint 2 - Task 6] Đối soát Giao dịch Định kỳ & QueryDR VNPay (Reconciliation Worker) — *Hoàn thành (30/10/2026)*
 
@@ -426,6 +461,12 @@
   3. `test_03_already_paid_order_not_scanned_again`: Đơn đã thanh toán không bị quét lại.
   4. `test_04_concurrency_skip_locked`: Kiểm tra cơ chế khóa chống xung đột giữa worker và IPN với `FOR UPDATE SKIP LOCKED`.
   5. `test_05_reconciliation_api_endpoint_rbac`: Kiểm tra phân quyền gọi API đối soát thủ công (Admin được phép, Customer bị chặn 403).
+
+#### 5. Danh sách files tạo mới & chỉnh sửa:
+- **Tầng Nghiệp vụ & Background Worker:** [`backend/app-api/app/services/payments/reconciliation.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/payments/reconciliation.py), [`backend/app-api/app/services/payments/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/payments/__init__.py)
+- **Tầng Định tuyến (Trigger API):** [`backend/app-api/app/routers/payments/router.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/payments/router.py)
+- **Tích hợp vòng đời Worker:** [`backend/app-api/app/main.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/main.py)
+- **Kiểm thử tự động:** [`backend/app-api/tests/unit/test_reconciliation.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/tests/unit/test_reconciliation.py)
 
 ### [Sprint 2 - Task 7] API Hoàn tiền & Hoàn trả Tồn kho (Refund & Restock) — *Hoàn thành (30/10/2026)*
 
@@ -468,6 +509,13 @@
   4. `test_refund_already_refunded_order_fails`: Cố tình gọi hoàn tiền lần 2 -> Báo lỗi `409 Conflict` (`ORDER_ALREADY_REFUNDED`).
   5. `test_non_admin_cannot_refund`: User không phải admin gọi hoàn tiền -> Báo lỗi `403 Forbidden`.
 
+#### 5. Danh sách files tạo mới & chỉnh sửa:
+- **Pydantic Schemas:** [`backend/app-api/app/schemas/admin/orders.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/admin/orders.py), [`backend/app-api/app/schemas/admin/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/schemas/admin/__init__.py)
+- **Tầng Nghiệp vụ (Service):** [`backend/app-api/app/services/admin/orders.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/admin/orders.py), [`backend/app-api/app/services/admin/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/admin/__init__.py)
+- **Tầng Định tuyến (Router):** [`backend/app-api/app/routers/admin/router.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/admin/router.py), [`backend/app-api/app/routers/admin/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/admin/__init__.py)
+- **Tích hợp ứng dụng:** [`backend/app-api/app/main.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/main.py)
+- **Kiểm thử tự động:** [`backend/app-api/tests/unit/test_refund.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/tests/unit/test_refund.py)
+
 ### [Sprint 2 - Task 8] Job Tự động Hủy Đơn Quá hạn Giữ chỗ (Auto-Cancel Expired Orders) — *Hoàn thành (31/10/2026)*
 
 #### 1. Cơ chế Chạy nền & Điều kiện Quét Đơn (Background Cron Job)
@@ -502,6 +550,13 @@
   3. `test_03_active_unexpired_order_not_cancelled`: Đơn hàng còn trong thời hạn 15 phút giữ chỗ không bị hủy nhầm.
   4. `test_04_confirmed_and_cod_orders_not_cancelled`: Đơn hàng đã thanh toán (`confirmed`) hoặc đơn COD không bị quét hủy.
   5. `test_05_admin_expire_stale_api_endpoint`: Kiểm tra phân quyền gọi API quét đơn quá hạn thủ công (Admin được phép, Customer bị chặn 403).
+
+#### 5. Danh sách files tạo mới & chỉnh sửa:
+- **Core Order Service:** [`backend/shared/order_service.py`](file:///d:/CS83/VirtuFitAI/backend/shared/order_service.py)
+- **Tầng Nghiệp vụ & Background Worker:** [`backend/app-api/app/services/orders/expiration.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/orders/expiration.py), [`backend/app-api/app/services/orders/__init__.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/services/orders/__init__.py)
+- **Tầng Định tuyến (Trigger API):** [`backend/app-api/app/routers/admin/router.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/routers/admin/router.py)
+- **Tích hợp vòng đời Worker:** [`backend/app-api/app/main.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/app/main.py)
+- **Kiểm thử tự động:** [`backend/app-api/tests/unit/test_expiration.py`](file:///d:/CS83/VirtuFitAI/backend/app-api/tests/unit/test_expiration.py)
 
 ---
 

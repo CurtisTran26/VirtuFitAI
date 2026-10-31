@@ -253,3 +253,60 @@
 - Test đơn hàng VNPay quá hạn 15 phút -> Tự động chuyển sang trạng thái `expired`.
 - **Test giải phóng tồn kho:** Kiểm tra `product_variants.reserved_quantity` giảm về mức ban đầu, tồn kho khả dụng tăng trở lại cho người khác mua.
 - Test đơn hàng đã thanh toán (`status = 'confirmed'`) hoặc đơn COD không bị hủy nhầm.
+
+
+---
+
+## 9. S2-035: (BE) PoC AI Thử Đồ Ảo với Fashn.ai (Virtual Try-On - VTON)
+
+### Code & Kiến trúc
+- **Tầng tích hợp Adapter (`backend/app-api/app/integrations/ai_service/try_on/`):**
+  - `base.py`: Interface `BaseTryOnProvider` định nghĩa phương thức trừu tượng `submit_try_on(...)` và `get_try_on_status(...)`.
+  - `fashn_provider.py`: Tích hợp chính thức với **Fashn.ai API** (`https://api.fashn.ai/v1/run`).
+    - Nhận dữ liệu: `model_image` (URL ảnh người dùng từ `virtufit-private`), `garment_image` (URL ảnh sản phẩm từ `virtufit-public`), `category` (`tops`, `bottoms`, `one-pieces`).
+    - Quản lý API Key bảo mật qua biến môi trường: `FASHN_API_KEY`.
+  - `mock_provider.py`: Giả lập phản hồi thành công từ kho ảnh mẫu nội bộ MinIO trong 0.2s để chạy Unit Test và phát triển độc lập không phụ thuộc mạng/hết quota.
+- **Service & Quản lý tác vụ bất đồng bộ:**
+  - Khởi tạo tác vụ thử đồ và trả về `task_id` cho Mobile (tránh chặn HTTP request lâu).
+  - Khi hoàn thành: Tự động tải ảnh kết quả về lưu bền vững vào MinIO bucket `virtufit-private/try-on/{user_id}/{task_id}.png`.
+  - Sinh Presigned URL an toàn (hạn dùng 30 phút) để Mobile hiển thị ảnh cho khách hàng.
+- **API Endpoints:**
+  - `POST /api/v1/try-on/submit`: Tiếp nhận yêu cầu thử đồ (User, Product, Category).
+  - `GET /api/v1/try-on/tasks/{task_id}`: Kiểm tra tiến độ và nhận kết quả thử đồ.
+
+### Unit Test (`tests/unit/test_ai_try_on.py`)
+- Test kiểm tra tính hợp lệ của dữ liệu đầu vào (định dạng ảnh, dung lượng ≤ 5MB, product tồn tại).
+- Test luồng xử lý Mock Provider thành công: Sinh `task_id`, trả kết quả và lưu đúng bucket MinIO `virtufit-private`.
+- Test xử lý lỗi khi Fashn.ai trả về lỗi (401 sai API Key, 429 quá tải, ảnh khuôn mặt bị che khuất) -> Backend bắt lỗi an toàn và trả mã lỗi chuẩn `502 Bad Gateway`.
+
+---
+
+## 10. S2-036: (BE) PoC AI Tạo Concept Thiết Kế Riêng với FLUX.1 (Fashion Concept Generation)
+
+### Code & Kiến trúc
+- **Tầng tích hợp Adapter (`backend/app-api/app/integrations/ai_service/concept/`):**
+  - `base.py`: Interface `BaseConceptProvider` định nghĩa `generate_concepts(...)`.
+  - `flux_provider.py`: Tích hợp mô hình **FLUX.1 (bản flux-schnell / flux-dev)** qua Replicate/Fal.ai API.
+    - Quản lý cấu hình qua `.env`: `FLUX_API_KEY`, `FLUX_MODEL_VERSION`.
+    - Sinh từ 1 đến 4 biến thể concept phác thảo theo yêu cầu.
+  - `mock_provider.py`: Trả về danh sách concept giả lập từ ảnh mẫu lưu sẵn trong MinIO để phục vụ test tự động và ghép màn hình Mobile.
+- **Bộ chuẩn hóa Prompt thời trang (Fashion Prompt Enrichment):**
+  - Tự động bổ sung các từ khóa chuyên ngành vào mô tả của khách:
+    `"Professional fashion lookbook studio shot, detailed fabric texture of {material}, {style_preset} aesthetic, high-end tailoring, clean neutral backdrop, realistic lighting"`
+- **Lưu trữ & Xuất bản:**
+  - Lưu ảnh các concept vào MinIO `virtufit-private/custom-designs/concepts/{concept_id}.png`.
+  - Tạo Presigned URL cho khách hàng duyệt mẫu trên Mobile và Designer thẩm định báo giá.
+- **API Endpoint:**
+  - `POST /api/v1/custom-design/concepts/generate`: Tiếp nhận prompt ý tưởng, phong cách, giới tính, số lượng ảnh cần sinh.
+
+### Báo cáo So sánh & Đánh giá PoC (`AI_POC_BENCHMARK_REPORT.md`)
+- Đo lường và tổng kết số liệu thực tế:
+  - Thời gian xử lý trung bình của FLUX.1-schnell (mục tiêu: ≤ 4 giây).
+  - Chi phí thực tế mỗi concept (mục tiêu: ≤ 0.03 USD / ảnh).
+  - Đánh giá khả năng bám sát prompt tiếng Việt và tính khả thi may mẫu thực tế.
+
+### Unit Test (`tests/unit/test_ai_concept.py`)
+- Test kiểm tra validation prompt: Độ dài (10 - 1000 ký tự), lọc từ khóa cấm/nhạy cảm.
+- Test bộ làm giàu prompt (Prompt Builder) tự động gắn style và tham số kỹ thuật may mặc.
+- Test Mock Concept Provider sinh thành công danh sách biến thể ảnh và lưu vào MinIO.
+- Test xử lý ngoại lệ khi API AI bị timeout hoặc hết credit.
